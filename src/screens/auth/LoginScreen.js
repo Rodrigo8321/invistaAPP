@@ -16,16 +16,12 @@ import {
 import { authService } from '../../services/authService';
 import { colors } from '../../styles/colors';
 
-// Componente da tela de Login.
 const LoginScreen = ({ navigation }) => {
-  // Estados para armazenar o email, a senha e o estado de carregamento do formulário.
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Função para lidar com a tentativa de login.
   const handleLogin = async () => {
-    // Validação básica
     if (!email || !password) {
       Alert.alert('Erro', 'Preencha todos os campos');
       return;
@@ -36,22 +32,17 @@ const LoginScreen = ({ navigation }) => {
       return;
     }
 
-    // Ativa o indicador de carregamento.
     setLoading(true);
 
     try {
-      // Chama o serviço de autenticação para tentar fazer o login.
       const result = await authService.login(email, password);
-
+      
       if (result.success) {
         console.log('✅ Navegando para app...');
-        // A navegação para a tela principal é tratada automaticamente pelo AuthNavigator,
-        // que detecta a mudança no estado de autenticação.
       } else {
         Alert.alert('Erro', result.error);
       }
     } catch (error) {
-      // Captura de erros inesperados durante o processo de login.
       Alert.alert('Erro', 'Erro ao fazer login');
     } finally {
       setLoading(false);
@@ -60,15 +51,16 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Garante que o conteúdo da barra de status seja claro no fundo escuro. */}
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      {/* KeyboardAvoidingView ajusta a tela quando o teclado aparece, evitando que ele cubra os inputs. */}
+      
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
       >
-        {/* ScrollView permite que o conteúdo role se for maior que a tela. */}
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Logo */}
           <View style={styles.logoContainer}>
             <View style={styles.logo}>
@@ -90,7 +82,7 @@ const LoginScreen = ({ navigation }) => {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                autoCorrect={false}
+                editable={!loading}
               />
             </View>
 
@@ -104,25 +96,22 @@ const LoginScreen = ({ navigation }) => {
                 onChangeText={setPassword}
                 secureTextEntry
                 autoCapitalize="none"
-                autoCorrect={false}
+                editable={!loading}
               />
             </View>
 
-            {/* Botão de Login */}
             <TouchableOpacity
               style={[styles.loginButton, loading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={loading}
             >
               {loading ? (
-                // Mostra um indicador de atividade enquanto o login está em andamento.
                 <ActivityIndicator color="#ffffff" />
               ) : (
                 <Text style={styles.loginButtonText}>Entrar</Text>
               )}
             </TouchableOpacity>
 
-            {/* Caixa de informações com credenciais de teste. */}
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
                 💡 Teste: qualquer@email.com / 123456

@@ -3,21 +3,15 @@ import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-na
 import { colors } from '../../styles/colors';
 import { authService } from '../../services/authService';
 
-// Componente da tela principal (Dashboard) após o login.
 const DashboardScreen = ({ navigation }) => {
-  // Função para lidar com o logout do usuário.
   const handleLogout = async () => {
     await authService.logout();
-    // A navegação de volta para a tela de Login é tratada automaticamente
-    // pelo AuthNavigator ao detectar a mudança no estado de autenticação.
   };
 
   return (
-    // SafeAreaView garante que o conteúdo não se sobreponha a áreas do sistema (como o notch em iPhones).
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Dashboard</Text>
-        {/* Botão para executar a função de logout. */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Text style={styles.logoutText}>Sair</Text>
         </TouchableOpacity>
