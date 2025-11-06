@@ -8,6 +8,15 @@ export const mockPortfolio = [
     avgPrice: 38.50,
     currentPrice: 42.30,
     sector: 'Petróleo',
+    fundamentals: {
+      pl: 4.2,
+      pvp: 0.9,
+      roe: 25.3,
+      dy: 12.5,
+      margLiq: 18.5,
+      lpa: 10.07,
+      vpa: 47.00,
+    }
   },
   {
     id: 2,
@@ -18,6 +27,15 @@ export const mockPortfolio = [
     avgPrice: 65.20,
     currentPrice: 68.90,
     sector: 'Mineração',
+    fundamentals: {
+      pl: 5.1,
+      pvp: 1.2,
+      roe: 22.1,
+      dy: 10.2,
+      margLiq: 28.3,
+      lpa: 13.51,
+      vpa: 57.42,
+    }
   },
   {
     id: 3,
@@ -28,6 +46,15 @@ export const mockPortfolio = [
     avgPrice: 9.80,
     currentPrice: 10.45,
     sector: 'Financeiro',
+    fundamentals: {
+      pl: 6.8,
+      pvp: 1.4,
+      roe: 18.5,
+      dy: 6.8,
+      margLiq: 35.2,
+      lpa: 1.54,
+      vpa: 7.46,
+    }
   },
   {
     id: 4,
@@ -38,6 +65,12 @@ export const mockPortfolio = [
     avgPrice: 10.20,
     currentPrice: 10.65,
     sector: 'Tijolo',
+    fundamentals: {
+      pvp: 0.98,
+      dy: 11.8,
+      vpa: 10.87,
+      vacancia: 3.2,
+    }
   },
   {
     id: 5,
@@ -48,5 +81,11 @@ export const mockPortfolio = [
     avgPrice: 165.00,
     currentPrice: 172.50,
     sector: 'Logística',
+    fundamentals: {
+      pvp: 1.02,
+      dy: 9.5,
+      vpa: 169.12,
+      vacancia: 1.8,
+    }
   },
 ];
