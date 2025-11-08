@@ -1,13 +1,15 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  SafeAreaView,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { colors } from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
@@ -15,28 +17,41 @@ import { mockPortfolio } from '../../data/mockAssets';
 import { watchlistService } from '../../services/watchlistService';
 import AssetCard from '../../components/common/AssetCard';
 
-const WatchlistScreen = () => {
+const WatchlistScreen = ({ navigation }) => {
   const [watchlist, setWatchlist] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
 
-  // Carregar watchlist do AsyncStorage
+  // Carregar watchlist ao montar
   useEffect(() => {
-    const loadWatchlist = async () => {
-      const tickers = await watchlistService.getWatchlist();
-      const { mockPortfolio } = await import('../../data/mockAssets');
-      const watchlistAssets = watchlistService.getWatchlistAssets(mockPortfolio, tickers);
-      setWatchlist(watchlistAssets);
-    };
-
     loadWatchlist();
   }, []);
 
-  // Filtrar watchlist
-  const filteredWatchlist = useMemo(() => {
-    let filtered = watchlist;
+  const loadWatchlist = async () => {
+    setLoading(true);
+    try {
+      const data = await watchlistService.getWatchlist();
+      setWatchlist(data);
+    } catch (error) {
+      console.error('Erro ao carregar watchlist:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // Filtro de busca
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadWatchlist();
+    setRefreshing(false);
+  };
+
+  // Filtrar e buscar
+  const filteredWatchlist = useMemo(() => {
+    let filtered = mockPortfolio.filter(asset => watchlist.includes(asset.ticker));
+
+    // Filtrar por busca
     if (searchQuery) {
       filtered = filtered.filter(
         asset =>
@@ -45,7 +60,7 @@ const WatchlistScreen = () => {
       );
     }
 
-    // Filtro de tipo
+    // Filtrar por tipo
     if (filterType !== 'all') {
       filtered = filtered.filter(asset => asset.type === filterType);
     }
@@ -53,141 +68,209 @@ const WatchlistScreen = () => {
     return filtered;
   }, [watchlist, searchQuery, filterType]);
 
-  const removeFromWatchlist = async (ticker) => {
+  // Remover da watchlist
+  const handleRemoveFromWatchlist = async (ticker) => {
     Alert.alert(
-      'Remover dos Favoritos',
-      'Tem certeza que deseja remover este ativo dos favoritos?',
+      'Remover Favorito',
+      `Deseja remover ${ticker} da watchlist?`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cancelar',
+          onPress: () => {},
+          style: 'cancel',
+        },
         {
           text: 'Remover',
-          style: 'destructive',
           onPress: async () => {
-            await watchlistService.removeFromWatchlist(ticker);
-            // Recarregar watchlist após remoção
-            const tickers = await watchlistService.getWatchlist();
-            const { mockPortfolio } = await import('../../data/mockAssets');
-            const watchlistAssets = watchlistService.getWatchlistAssets(mockPortfolio, tickers);
-            setWatchlist(watchlistAssets);
-          }
-        }
+            setLoading(true);
+            try {
+              await watchlistService.removeFromWatchlist(ticker);
+              await loadWatchlist();
+              Alert.alert('Sucesso', `${ticker} removido da watchlist`);
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível remover o ativo');
+            } finally {
+              setLoading(false);
+            }
+          },
+          style: 'destructive',
+        },
       ]
     );
   };
 
-  const addToWatchlist = (asset) => {
-    if (!watchlist.find(item => item.id === asset.id)) {
-      setWatchlist(prev => [...prev, asset]);
-      Alert.alert('Sucesso', `${asset.ticker} adicionado aos favoritos!`);
-    } else {
-      Alert.alert('Aviso', `${asset.ticker} já está nos favoritos.`);
-    }
-  };
+  // Calcular totais
+  const totals = useMemo(() => {
+    const invested = filteredWatchlist.reduce(
+      (sum, asset) => sum + asset.quantity * asset.avgPrice,
+      0
+    );
+    const current = filteredWatchlist.reduce(
+      (sum, asset) => sum + asset.quantity * asset.currentPrice,
+      0
+    );
+    const profit = current - invested;
+    const profitPercent = invested > 0 ? (profit / invested) * 100 : 0;
+
+    return { invested, current, profit, profitPercent };
+  }, [filteredWatchlist]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Carregando watchlist...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>⭐ Meus Favoritos</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => Alert.alert('Em breve', 'Adicionar ativo aos favoritos')}
-        >
-          <Text style={styles.addButtonText}>+ Adicionar</Text>
-        </TouchableOpacity>
+        <Text style={styles.title}>⭐ Minha Watchlist</Text>
+        <Text style={styles.subtitle}>
+          {watchlist.length} favorito{watchlist.length !== 1 ? 's' : ''}
+        </Text>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Search */}
-        <View style={styles.controlsContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Buscar favoritos..."
-            placeholderTextColor={colors.textSecondary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
-        </View>
-
-        {/* Filters */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.filtersRow}
-          contentContainerStyle={styles.filtersContent}
-        >
-          <TouchableOpacity
-            style={[styles.filterChip, filterType === 'all' && styles.filterChipActive]}
-            onPress={() => setFilterType('all')}
-          >
-            <Text style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>
-              Todos
+        }
+      >
+        {watchlist.length === 0 ? (
+          // Estado vazio
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>⭐</Text>
+            <Text style={styles.emptyTitle}>Nenhum Favorito</Text>
+            <Text style={styles.emptyText}>
+              Adicione ativos à sua watchlist para acompanhá-los aqui
             </Text>
-          </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {/* Summary Cards */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.summaryContainer}
+              contentContainerStyle={styles.summaryContent}
+            >
+              <View style={[styles.summaryCard, { backgroundColor: colors.primary }]}>
+                <Text style={styles.summaryLabel}>Total Investido</Text>
+                <Text style={styles.summaryValue}>
+                  {formatCurrency(totals.invested)}
+                </Text>
+              </View>
 
-          <TouchableOpacity
-            style={[styles.filterChip, filterType === 'Ação' && styles.filterChipActive]}
-            onPress={() => setFilterType('Ação')}
-          >
-            <Text style={[styles.filterText, filterType === 'Ação' && styles.filterTextActive]}>
-              Ações
-            </Text>
-          </TouchableOpacity>
+              <View style={[styles.summaryCard, { backgroundColor: colors.secondary }]}>
+                <Text style={styles.summaryLabel}>Valor Atual</Text>
+                <Text style={styles.summaryValue}>
+                  {formatCurrency(totals.current)}
+                </Text>
+              </View>
 
-          <TouchableOpacity
-            style={[styles.filterChip, filterType === 'FII' && styles.filterChipActive]}
-            onPress={() => setFilterType('FII')}
-          >
-            <Text style={[styles.filterText, filterType === 'FII' && styles.filterTextActive]}>
-              FIIs
-            </Text>
-          </TouchableOpacity>
-        </ScrollView>
+              <View style={[styles.summaryCard, {
+                backgroundColor: totals.profit >= 0 ? colors.success : colors.danger
+              }]}>
+                <Text style={styles.summaryLabel}>Lucro/Prejuízo</Text>
+                <Text style={styles.summaryValue}>
+                  {formatCurrency(Math.abs(totals.profit))}
+                </Text>
+                <Text style={styles.summaryPercent}>
+                  {totals.profitPercent >= 0 ? '+' : ''}{totals.profitPercent.toFixed(2)}%
+                </Text>
+              </View>
+            </ScrollView>
 
-        {/* Watchlist List */}
-        <View style={styles.listContainer}>
-          {filteredWatchlist.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>⭐</Text>
-              <Text style={styles.emptyTitle}>Nenhum favorito encontrado</Text>
-              <Text style={styles.emptyText}>
-                {searchQuery ? 'Tente outra busca' : 'Adicione seus primeiros favoritos'}
-              </Text>
+            <View style={styles.content}>
+              {/* Busca */}
+              <View style={styles.controlsContainer}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Buscar favorito..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+
+              {/* Filtros */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.filtersRow}
+                contentContainerStyle={styles.filtersContent}
+              >
+                <TouchableOpacity
+                  style={[styles.filterChip, filterType === 'all' && styles.filterChipActive]}
+                  onPress={() => setFilterType('all')}
+                >
+                  <Text style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>
+                    Todos ({watchlist.length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.filterChip, filterType === 'Ação' && styles.filterChipActive]}
+                  onPress={() => setFilterType('Ação')}
+                >
+                  <Text style={[styles.filterText, filterType === 'Ação' && styles.filterTextActive]}>
+                    Ações ({mockPortfolio.filter(a => a.type === 'Ação' && watchlist.includes(a.ticker)).length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.filterChip, filterType === 'FII' && styles.filterChipActive]}
+                  onPress={() => setFilterType('FII')}
+                >
+                  <Text style={[styles.filterText, filterType === 'FII' && styles.filterTextActive]}>
+                    FIIs ({mockPortfolio.filter(a => a.type === 'FII' && watchlist.includes(a.ticker)).length})
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+
+              {/* Lista de Favoritos */}
+              <View style={styles.listContainer}>
+                {filteredWatchlist.length === 0 ? (
+                  <View style={styles.noResults}>
+                    <Text style={styles.noResultsIcon}>🔍</Text>
+                    <Text style={styles.noResultsTitle}>Nenhum resultado</Text>
+                    <Text style={styles.noResultsText}>
+                      Tente ajustar os filtros ou busca
+                    </Text>
+                  </View>
+                ) : (
+                  filteredWatchlist.map(asset => (
+                    <View key={asset.id} style={styles.assetContainer}>
+                      <AssetCard
+                        asset={asset}
+                        onPress={() =>
+                          navigation.navigate('AssetDetail', { asset })
+                        }
+                      />
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => handleRemoveFromWatchlist(asset.ticker)}
+                      >
+                        <Text style={styles.removeIcon}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </View>
             </View>
-          ) : (
-            filteredWatchlist.map(asset => {
-              const invested = asset.quantity * asset.avgPrice;
-              const current = asset.quantity * asset.currentPrice;
-              const profit = current - invested;
-
-              return (
-                <View key={asset.id} style={styles.assetContainer}>
-                  <AssetCard
-                    asset={asset}
-                    onPress={() => {
-                      Alert.alert(
-                        asset.ticker,
-                        `${asset.name}\n\n` +
-                        `Quantidade: ${asset.quantity}\n` +
-                        `Preço Médio: ${formatCurrency(asset.avgPrice)}\n` +
-                        `Preço Atual: ${formatCurrency(asset.currentPrice)}\n\n` +
-                        `Investido: ${formatCurrency(invested)}\n` +
-                        `Valor Atual: ${formatCurrency(current)}\n` +
-                        `Lucro: ${formatCurrency(profit)}`
-                      );
-                    }}
-                  />
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => removeFromWatchlist(asset.ticker)}
-                  >
-                    <Text style={styles.removeButtonText}>Remover</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })
-          )}
-        </View>
+          </>
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -200,10 +283,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    marginTop: 12,
+  },
+  header: {
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -212,16 +302,61 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.text,
+    marginBottom: 4,
   },
-  addButton: {
-    backgroundColor: colors.success,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
+  subtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
-  addButtonText: {
-    color: colors.text,
+  summaryContainer: {
+    paddingLeft: 20,
+    marginVertical: 20,
+  },
+  summaryContent: {
+    paddingRight: 20,
+  },
+  summaryCard: {
+    width: 150,
+    padding: 12,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  summaryLabel: {
+    color: '#ffffff',
+    fontSize: 11,
+    opacity: 0.9,
+    marginBottom: 8,
+  },
+  summaryValue: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  summaryPercent: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyState: {
+    alignItems: 'center',
+    marginTop: 64,
+    paddingHorizontal: 20,
+  },
+  emptyIcon: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
   },
   content: {
     flex: 1,
@@ -271,38 +406,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   assetContainer: {
-    marginBottom: 16,
+    marginBottom: 12,
+    position: 'relative',
   },
   removeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.danger,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginTop: 8,
-  },
-  removeButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  emptyState: {
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 64,
+    zIndex: 10,
   },
-  emptyIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    color: colors.text,
+  removeIcon: {
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 8,
   },
-  emptyText: {
+  noResults: {
+    alignItems: 'center',
+    marginTop: 40,
+  },
+  noResultsIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  noResultsTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  noResultsText: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 13,
   },
 });
 
