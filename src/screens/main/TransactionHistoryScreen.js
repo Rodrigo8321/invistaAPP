@@ -22,10 +22,10 @@ const TransactionHistoryScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState(null); // CORREÇÃO: Estado para asset selecionado
   const [filterType, setFilterType] = useState('all');
   const [filterPeriod, setFilterPeriod] = useState('todos');
 
-  // Carregar transações ao montar
   useEffect(() => {
     loadTransactions();
   }, []);
@@ -48,17 +48,6 @@ const TransactionHistoryScreen = () => {
     setRefreshing(false);
   };
 
-  // Salvar nova transação
-  const handleSaveTransaction = async (transaction) => {
-    try {
-      await transactionService.addTransaction(transaction);
-      await loadTransactions();
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  // Deletar transação
   const handleDeleteTransaction = async (transactionId) => {
     Alert.alert(
       'Deletar Transação',
@@ -85,23 +74,26 @@ const TransactionHistoryScreen = () => {
     );
   };
 
-  // Filtrar e ordenar
+  // CORREÇÃO: Nova função para abrir modal com seleção de ativo
+  const handleOpenModal = () => {
+    if (mockPortfolio.length === 0) {
+      Alert.alert('Aviso', 'Nenhum ativo disponível no portfolio');
+      return;
+    }
+    
+    // Seleciona o primeiro ativo por padrão
+    setSelectedAsset(mockPortfolio[0]);
+    setModalVisible(true);
+  };
+
   const filtered = useMemo(() => {
     let result = [...transactions];
-
-    // Filtrar por tipo
     result = transactionService.filterByType(result, filterType);
-
-    // Filtrar por período
     result = transactionService.filterByPeriod(result, filterPeriod);
-
-    // Ordenar por data (mais recentes primeiro)
     result = transactionService.sortByDate(result);
-
     return result;
   }, [transactions, filterType, filterPeriod]);
 
-  // Calcular totais
   const totals = useMemo(() => {
     return transactionService.calculateTotals(filtered);
   }, [filtered]);
@@ -119,7 +111,6 @@ const TransactionHistoryScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>📋 Histórico de Transações</Text>
         <Text style={styles.subtitle}>
@@ -139,7 +130,6 @@ const TransactionHistoryScreen = () => {
         }
       >
         {transactions.length === 0 ? (
-          // Estado vazio
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📋</Text>
             <Text style={styles.emptyTitle}>Nenhuma Transação</Text>
@@ -149,7 +139,6 @@ const TransactionHistoryScreen = () => {
           </View>
         ) : (
           <>
-            {/* Summary Cards */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -184,16 +173,14 @@ const TransactionHistoryScreen = () => {
             </ScrollView>
 
             <View style={styles.content}>
-              {/* Botão Nova Transação */}
               <TouchableOpacity
                 style={styles.newButton}
-                onPress={() => setModalVisible(true)}
+                onPress={handleOpenModal}
               >
                 <Text style={styles.newButtonIcon}>➕</Text>
                 <Text style={styles.newButtonText}>Nova Transação</Text>
               </TouchableOpacity>
 
-              {/* Filtros por Tipo */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Tipo:</Text>
                 <ScrollView
@@ -231,7 +218,6 @@ const TransactionHistoryScreen = () => {
                 </ScrollView>
               </View>
 
-              {/* Filtros por Período */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterLabel}>Período:</Text>
                 <ScrollView
@@ -278,7 +264,6 @@ const TransactionHistoryScreen = () => {
                 </ScrollView>
               </View>
 
-              {/* Lista de Transações */}
               <View style={styles.listContainer}>
                 {filtered.length === 0 ? (
                   <View style={styles.noResults}>
@@ -305,13 +290,15 @@ const TransactionHistoryScreen = () => {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* Modal */}
-      <TransactionModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        onSave={handleSaveTransaction}
-        portfolio={mockPortfolio}
-      />
+      {/* CORREÇÃO: Passa asset selecionado corretamente */}
+      {selectedAsset && (
+        <TransactionModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          asset={selectedAsset}
+          onTransactionAdded={loadTransactions}
+        />
+      )}
     </SafeAreaView>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { colors } from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
+import { marketService } from '../../services/marketService';
 import { mockPortfolio } from '../../data/mockAssets';
 import StatCard from '../../components/common/StatCard';
 import AssetCard from '../../components/common/AssetCard';
@@ -19,8 +20,56 @@ import AssetCard from '../../components/common/AssetCard';
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }) => {
-  const [portfolio] = useState(mockPortfolio);
+  const [portfolio, setPortfolio] = useState(mockPortfolio);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Carregar preços reais ao montar
+  useEffect(() => {
+    loadRealPrices();
+  }, []);
+
+  const loadRealPrices = async () => {
+    setLoading(true);
+    try {
+      console.log('📊 Carregando preços reais...');
+
+      const tickers = mockPortfolio.map(a => a.ticker);
+      console.log('Tickers:', tickers);
+
+      const quotes = await marketService.getQuotes(tickers);
+      console.log('Quotes recebidas:', quotes);
+
+      if (quotes && quotes.length > 0) {
+        // Atualizar portfolio com preços reais
+        const updated = mockPortfolio.map(asset => {
+          const quote = quotes.find(q => q.ticker === asset.ticker);
+
+          if (quote) {
+            console.log(`✅ Atualizado ${asset.ticker}: ${quote.currentPrice}`);
+            return {
+              ...asset,
+              currentPrice: quote.currentPrice,
+              change: quote.change || 0,
+              changePercent: quote.changePercent || 0,
+            };
+          }
+
+          return asset;
+        });
+
+        setPortfolio(updated);
+        console.log('✅ Portfolio atualizado com preços reais');
+      } else {
+        console.log('⚠️ Nenhuma cotação recebida, usando mock');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar preços:', error);
+      // Continua com mock data
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Calcular estatísticas
   const stats = useMemo(() => {
@@ -55,7 +104,7 @@ const DashboardScreen = ({ navigation }) => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await loadRealPrices();
     setRefreshing(false);
   };
 
@@ -225,7 +274,8 @@ const DashboardScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>📊 Distribuição por Tipo</Text>
           <View style={styles.distributionContainer}>
             {Object.entries(stats.byType).map(([type, value]) => {
-              const percent = (value / stats.totalCurrent) * 100;
+              const totalCurrent = Object.values(stats.byType).reduce((a, b) => a + b, 0);
+              const percent = totalCurrent > 0 ? (value / totalCurrent) * 100 : 0;
               return (
                 <View key={type} style={styles.distributionItem}>
                   <View style={styles.distributionHeader}>

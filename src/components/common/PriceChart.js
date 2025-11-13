@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { LineChart } from 'recharts';
 import { colors } from '../../styles/colors';
 
 const { width } = Dimensions.get('window');
 
 /**
  * Componente que exibe um gráfico de evolução de preço
+ * Versão simplificada sem Recharts (que não funciona bem em React Native)
  * @param {object} asset - Dados do ativo
  * @param {number} period - Período em dias (7, 30, 90, 365)
  */
@@ -66,41 +66,51 @@ const PriceChart = ({ asset, period = 30 }) => {
         </View>
       </View>
 
-      {/* Gráfico */}
+      {/* Gráfico Simplificado */}
       <View style={styles.chartContainer}>
-        <LineChart
-          width={width - 40}
-          height={250}
-          data={chartData}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        >
-          <LineChart.Line
-            type="monotone"
-            dataKey="price"
-            stroke={lineColor}
-            dot={false}
-            strokeWidth={2.5}
-            isAnimationActive={true}
-          />
-          <LineChart.XAxis
-            dataKey="day"
-            tick={{ fill: colors.textSecondary, fontSize: 12 }}
-            stroke={colors.border}
-          />
-          <LineChart.YAxis
-            tick={{ fill: colors.textSecondary, fontSize: 12 }}
-            stroke={colors.border}
-          />
-          <LineChart.Tooltip
-            contentStyle={{
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              borderRadius: 8,
-            }}
-            labelStyle={{ color: colors.text }}
-            formatter={(value) => `R$ ${value.toFixed(2)}`}
-          />
-        </LineChart>
+        <View style={styles.chartGrid}>
+          {/* Linhas de grid horizontais */}
+          <View style={[styles.gridLine, { top: '0%' }]} />
+          <View style={[styles.gridLine, { top: '25%' }]} />
+          <View style={[styles.gridLine, { top: '50%' }]} />
+          <View style={[styles.gridLine, { top: '75%' }]} />
+          <View style={[styles.gridLine, { top: '100%' }]} />
+        </View>
+
+        {/* Barras simplificadas para representar preços */}
+        <View style={styles.barsContainer}>
+          {chartData.map((item, index) => {
+            const minPrice = stats.min;
+            const maxPrice = stats.max;
+            const priceRange = maxPrice - minPrice || 1;
+            const heightPercent = ((item.price - minPrice) / priceRange) * 100;
+            
+            return (
+              <View key={index} style={styles.barWrapper}>
+                <View 
+                  style={[
+                    styles.bar, 
+                    { 
+                      height: `${heightPercent}%`,
+                      backgroundColor: lineColor + '80',
+                    }
+                  ]} 
+                />
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Labels do eixo X */}
+        <View style={styles.xAxisLabels}>
+          <Text style={styles.axisLabel}>{chartData[0]?.day}</Text>
+          <Text style={styles.axisLabel}>
+            {chartData[Math.floor(chartData.length / 2)]?.day}
+          </Text>
+          <Text style={styles.axisLabel}>
+            {chartData[chartData.length - 1]?.day}
+          </Text>
+        </View>
       </View>
 
       {/* Stats */}
@@ -159,11 +169,52 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   chartContainer: {
-    alignItems: 'center',
-    marginVertical: 12,
+    height: 200,
     backgroundColor: colors.background,
     borderRadius: 12,
-    padding: 8,
+    padding: 12,
+    marginBottom: 12,
+    position: 'relative',
+  },
+  chartGrid: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    top: 12,
+    bottom: 32,
+  },
+  gridLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: colors.border + '40',
+  },
+  barsContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 168,
+    paddingHorizontal: 4,
+  },
+  barWrapper: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 1,
+  },
+  bar: {
+    width: '100%',
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+  },
+  xAxisLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  axisLabel: {
+    color: colors.textSecondary,
+    fontSize: 10,
   },
   statsContainer: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { colors } from '../../styles/colors';
 import { mockPortfolio } from '../../data/mockAssets';
+import { marketService } from '../../services/marketService';
 
 import PortfolioSummary from '../../components/analysis/PortfolioSummary';
 import DiversificationChart from '../../components/analysis/DiversificationChart';
@@ -18,7 +19,37 @@ import SectorDistribution from '../../components/analysis/SectorDistribution';
 
 const AnalysisScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
-  const [portfolio] = useState(mockPortfolio);
+  const [portfolio, setPortfolio] = useState(mockPortfolio);
+
+  // Carregar dados reais ao montar
+  useEffect(() => {
+    loadRealPrices();
+  }, []);
+
+  const loadRealPrices = async () => {
+    try {
+      const tickers = mockPortfolio.map(a => a.ticker);
+      const quotes = await marketService.getQuotes(tickers);
+
+      // Mesmo padrão do DashboardScreen
+      const updated = mockPortfolio.map(asset => {
+        const quote = quotes.find(q => q.ticker === asset.ticker);
+        if (quote) {
+          return {
+            ...asset,
+            currentPrice: quote.currentPrice,
+            change: quote.change,
+            changePercent: quote.changePercent,
+          };
+        }
+        return asset;
+      });
+
+      setPortfolio(updated);
+    } catch (error) {
+      console.error('Erro ao carregar preços:', error);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);

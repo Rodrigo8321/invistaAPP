@@ -6,8 +6,7 @@ const AuthContext = createContext();
 
 /**
  * Provedor de Autenticação.
- * Este componente envolve a aplicação e fornece o contexto de autenticação
- * para todos os componentes filhos.
+ * CORREÇÃO: Melhorada verificação inicial de autenticação
  */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -15,33 +14,70 @@ export const AuthProvider = ({ children }) => {
 
   // Verifica se o usuário já está logado ao iniciar o app
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const isAuthenticated = await authService.isAuthenticated();
-        if (isAuthenticated) {
-          // Em um app real, você buscaria os dados do usuário aqui
-          setUser({ name: 'Usuário Teste', email: 'qualquer@email.com' });
-        }
-      } catch (e) {
-        console.error("Falha ao checar autenticação", e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     checkAuth();
   }, []);
 
-  const login = async (email, password) => {
-    const result = await authService.login(email, password);
-    if (result.success) {
-      setUser({ name: 'Usuário Teste', email });
+  const checkAuth = async () => {
+    try {
+      console.log('🔍 Verificando autenticação...');
+
+      const isAuthenticated = await authService.isAuthenticated();
+
+      if (isAuthenticated) {
+        // Busca dados do usuário armazenados
+        const userData = await authService.getUser();
+
+        if (userData) {
+          console.log('✅ Usuário autenticado:', userData.email);
+          setUser(userData);
+        } else {
+          console.log('⚠️ Token existe mas dados do usuário não encontrados');
+          // Se tem token mas não tem dados, limpa tudo
+          await authService.logout();
+          setUser(null);
+        }
+      } else {
+        console.log('❌ Usuário não autenticado');
+        setUser(null);
+      }
+    } catch (e) {
+      console.error("❌ Falha ao checar autenticação:", e);
+      // Em caso de erro, limpa autenticação
+      await authService.logout();
+      setUser(null);
+    } finally {
+      setIsLoading(false);
     }
-    return result;
+  };
+
+  const login = async (email, password) => {
+    try {
+      console.log('🔐 Tentando login...');
+      const result = await authService.login(email, password);
+
+      if (result.success) {
+        console.log('✅ Login bem-sucedido!');
+        setUser(result.user);
+      } else {
+        console.log('❌ Login falhou:', result.error);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('❌ Erro no login:', error);
+      return { success: false, error: 'Erro ao fazer login' };
+    }
   };
 
   const logout = async () => {
-    await authService.logout();
-    setUser(null);
+    try {
+      console.log('🚪 Fazendo logout...');
+      await authService.logout();
+      setUser(null);
+      console.log('✅ Logout realizado');
+    } catch (error) {
+      console.error('❌ Erro no logout:', error);
+    }
   };
 
   return (
@@ -52,4 +88,12 @@ export const AuthProvider = ({ children }) => {
 };
 
 // 2. Cria o Hook customizado para usar o contexto facilmente
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+
+  if (!context) {
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+  }
+
+  return context;
+};

@@ -11,35 +11,50 @@ import {
 } from 'react-native';
 import { colors } from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
-import { watchlistService } from '../../services/watchlistService';
+import { marketService } from '../../services/marketService';
 import PriceChart from '../../components/common/PriceChart';
 import FundamentalsCard from '../../components/common/FundamentalsCard';
 
-/**
- * Tela de detalhes de um ativo
- * @param {object} route - Objeto de rota com parâmetros
- * @param {object} navigation - Objeto de navegação
- */
 const AssetDetailScreen = ({ route, navigation }) => {
   const { asset } = route.params;
   const [chartPeriod, setChartPeriod] = useState(30);
-  const [loading, setLoading] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [realAsset, setRealAsset] = useState(asset);
 
-  // Carregar estado do favorito
+  // Carregar preço real ao montar
   useEffect(() => {
-    checkIfFavorited();
+    loadRealPrice();
   }, [asset.ticker]);
 
-  const checkIfFavorited = async () => {
-    const isFav = await watchlistService.isInWatchlist(asset.ticker);
-    setIsFavorited(isFav);
+  const loadRealPrice = async () => {
+    setLoading(true);
+    try {
+      console.log(`📊 Carregando preço real para ${asset.ticker}...`);
+      
+      const quote = await marketService.getQuote(asset.ticker, true);
+      
+      if (quote) {
+        console.log(`✅ Preço real para ${asset.ticker}: ${quote.currentPrice}`);
+        setRealAsset(prev => ({
+          ...prev,
+          currentPrice: quote.currentPrice,
+          change: quote.change || 0,
+          changePercent: quote.changePercent || 0,
+        }));
+      } else {
+        console.log(`⚠️ Não conseguiu preço real para ${asset.ticker}, usando local`);
+      }
+    } catch (error) {
+      console.error(`❌ Erro ao carregar preço:`, error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Calcular dados do ativo
   const assetData = useMemo(() => {
-    const invested = asset.quantity * asset.avgPrice;
-    const current = asset.quantity * asset.currentPrice;
+    const invested = realAsset.quantity * realAsset.avgPrice;
+    const current = realAsset.quantity * realAsset.currentPrice;
     const profit = current - invested;
     const profitPercent = (profit / invested) * 100;
     const isPositive = profit >= 0;
@@ -51,47 +66,32 @@ const AssetDetailScreen = ({ route, navigation }) => {
       profitPercent,
       isPositive,
     };
-  }, [asset]);
+  }, [realAsset]);
 
-  // Simular ação de compra
   const handleBuy = () => {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      Alert.alert('✅ Sucesso', `Compra de ${asset.ticker} simulada!\n\nFuncionalidade em desenvolvimento`, [
+      Alert.alert('✅ Sucesso', `Compra de ${realAsset.ticker} simulada!\n\nFuncionalidade em desenvolvimento`, [
         { text: 'OK' }
       ]);
     }, 1000);
   };
 
-  // Simular ação de venda
   const handleSell = () => {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      Alert.alert('✅ Sucesso', `Venda de ${asset.ticker} simulada!\n\nFuncionalidade em desenvolvimento`, [
+      Alert.alert('✅ Sucesso', `Venda de ${realAsset.ticker} simulada!\n\nFuncionalidade em desenvolvimento`, [
         { text: 'OK' }
       ]);
     }, 1000);
   };
 
-  // Adicionar à watchlist
-  const handleAddToWatchlist = async () => {
-    setLoading(true);
-    try {
-      const added = await watchlistService.toggleWatchlist(asset.ticker);
-      setIsFavorited(added);
-
-      if (added) {
-        Alert.alert('✅ Sucesso', `${asset.ticker} adicionado aos favoritos!`);
-      } else {
-        Alert.alert('✅ Removido', `${asset.ticker} removido dos favoritos`);
-      }
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível atualizar favorito');
-    } finally {
-      setLoading(false);
-    }
+  const handleAddToWatchlist = () => {
+    Alert.alert('💫 Em breve', 'Funcionalidade de Watchlist será adicionada em breve', [
+      { text: 'OK' }
+    ]);
   };
 
   return (
@@ -115,13 +115,13 @@ const AssetDetailScreen = ({ route, navigation }) => {
           <View style={styles.assetHeader}>
             <View style={styles.iconContainer}>
               <Text style={styles.icon}>
-                {asset.type === 'Ação' ? '📈' : '🏢'}
+                {realAsset.type === 'Ação' ? '📈' : '🏢'}
               </Text>
             </View>
             <View style={styles.assetDetails}>
-              <Text style={styles.ticker}>{asset.ticker}</Text>
-              <Text style={styles.name}>{asset.name}</Text>
-              <Text style={styles.sector}>{asset.sector}</Text>
+              <Text style={styles.ticker}>{realAsset.ticker}</Text>
+              <Text style={styles.name}>{realAsset.name}</Text>
+              <Text style={styles.sector}>{realAsset.sector}</Text>
             </View>
           </View>
 
@@ -129,13 +129,13 @@ const AssetDetailScreen = ({ route, navigation }) => {
           <View style={styles.pricesContainer}>
             <View style={styles.priceBox}>
               <Text style={styles.priceLabel}>Preço Médio</Text>
-              <Text style={styles.price}>{formatCurrency(asset.avgPrice)}</Text>
+              <Text style={styles.price}>{formatCurrency(realAsset.avgPrice)}</Text>
             </View>
             <View style={styles.priceDivider} />
             <View style={styles.priceBox}>
               <Text style={styles.priceLabel}>Preço Atual</Text>
               <Text style={[styles.price, { color: colors.primary }]}>
-                {formatCurrency(asset.currentPrice)}
+                {formatCurrency(realAsset.currentPrice)}
               </Text>
             </View>
           </View>
@@ -143,7 +143,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
           {/* Quantidade */}
           <View style={styles.quantityContainer}>
             <Text style={styles.quantityLabel}>Quantidade em Portfólio</Text>
-            <Text style={styles.quantity}>{asset.quantity} unidades</Text>
+            <Text style={styles.quantity}>{realAsset.quantity} unidades</Text>
           </View>
         </View>
 
@@ -188,7 +188,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
         </View>
 
         {/* Gráfico */}
-        <PriceChart asset={asset} period={chartPeriod} />
+        <PriceChart asset={realAsset} period={chartPeriod} />
 
         {/* Seletor de Período */}
         <View style={styles.periodSelector}>
@@ -230,7 +230,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
         </View>
 
         {/* Fundamentals */}
-        <FundamentalsCard asset={asset} type={asset.type} />
+        <FundamentalsCard asset={realAsset} type={realAsset.type} />
 
         {/* Botões de Ação */}
         <View style={styles.actionsContainer}>
@@ -264,18 +264,13 @@ const AssetDetailScreen = ({ route, navigation }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionButton,
-              isFavorited ? styles.watchlistButtonActive : styles.watchlistButton]}
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.watchlistButton]}
             onPress={handleAddToWatchlist}
             disabled={loading}
           >
-            <Text style={styles.actionButtonIcon}>
-              {isFavorited ? '⭐' : '☆'}
-            </Text>
-            <Text style={styles.actionButtonText}>
-              {isFavorited ? 'Favorito' : 'Favoritar'}
-            </Text>
+            <Text style={styles.actionButtonIcon}>⭐</Text>
+            <Text style={styles.actionButtonText}>Favoritar</Text>
           </TouchableOpacity>
         </View>
 
@@ -394,7 +389,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -467,9 +462,6 @@ const styles = StyleSheet.create({
   },
   watchlistButton: {
     backgroundColor: colors.secondary,
-  },
-  watchlistButtonActive: {
-    backgroundColor: colors.warning,
   },
   actionButtonIcon: {
     fontSize: 18,

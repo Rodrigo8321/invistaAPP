@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,14 +11,51 @@ import {
 } from 'react-native';
 import { colors } from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
+import { marketService } from '../../services/marketService';
 import { mockPortfolio } from '../../data/mockAssets';
 import AssetCard from '../../components/common/AssetCard';
 
 const PortfolioScreen = () => {
-  const [portfolio] = useState(mockPortfolio);
+  const [portfolio, setPortfolio] = useState(mockPortfolio);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all'); // all, Ação, FII
-  const [sortBy, setSortBy] = useState('ticker'); // ticker, performance, value
+  const [filterType, setFilterType] = useState('all');
+  const [sortBy, setSortBy] = useState('ticker');
+
+  // Carregar preços reais ao montar
+  useEffect(() => {
+    loadRealPrices();
+  }, []);
+
+  const loadRealPrices = async () => {
+    try {
+      console.log('📊 Portfolio: Carregando preços reais...');
+      
+      const tickers = mockPortfolio.map(a => a.ticker);
+      const quotes = await marketService.getQuotes(tickers);
+
+      if (quotes && quotes.length > 0) {
+        const updated = mockPortfolio.map(asset => {
+          const quote = quotes.find(q => q.ticker === asset.ticker);
+          
+          if (quote) {
+            return {
+              ...asset,
+              currentPrice: quote.currentPrice,
+              change: quote.change || 0,
+              changePercent: quote.changePercent || 0,
+            };
+          }
+          
+          return asset;
+        });
+
+        setPortfolio(updated);
+        console.log('✅ Portfolio atualizado');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao carregar preços:', error);
+    }
+  };
 
   // Filtrar e ordenar
   const filteredPortfolio = useMemo(() => {
@@ -294,13 +331,13 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     color: '#ffffff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   summaryPercent: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   content: {
