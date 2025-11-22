@@ -1,26 +1,20 @@
-# Erros Identificados e Correções Necessárias
+## Correções Pendentes no Projeto
 
-## 1. PriceChart.js - Biblioteca incompatível
+### 1. TransactionHistoryScreen.js - Props incorretas para TransactionModal
 
-- **Problema**: Usa 'recharts' (web-only) em React Native
-- **Solução**: Substituir por gráfico simples usando View ou instalar biblioteca compatível
+- **Problema**: Passa `asset` (objeto único) mas TransactionModal espera `portfolio` (array)
+- **Solução**: Alterar prop para `portfolio={mockPortfolio}` e remover lógica de pré-seleção de ativo
 
-## 2. marketService.js - Timeout no fetch
+### 2. Verificar TransactionModal.js - Parsing de preço
 
-- **Problema**: fetch() não suporta parâmetro timeout no React Native
-- **Solução**: Implementar timeout manual com AbortController
+- **Verificar**: Lógica de conversão de string para número com separador decimal
+- **Ação**: Confirmar se está funcionando corretamente
 
-## 3. SettingsScreen.js - AuthContext inexistente
+### 3. Verificar SettingsScreen.js - AuthContext
 
-- **Problema**: Importa AuthContext que não existe
-- **Solução**: Remover import e funcionalidades de auth ou criar contexto
+- **Verificar**: Import e uso do AuthContext (parece estar correto)
+- **Ação**: Confirmar se não há erros de import
 
-## 4. TransactionHistoryScreen.js - Props do modal
+### 4. Testar aplicação após correções
 
-- **Problema**: Passa props incorretas para TransactionModal
-- **Solução**: Corrigir props passadas para o modal
-
-## 5. TransactionModal.js - Parsing de preço
-
-- **Problema**: Bug no parsing de preço com separador decimal
-- **Solução**: Corrigir lógica de conversão de string para número
+- **Ação**: Executar app e verificar se erros foram resolvidos

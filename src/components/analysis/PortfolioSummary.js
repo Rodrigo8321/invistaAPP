@@ -21,19 +21,38 @@ const PortfolioSummary = ({ portfolio }) => {
       };
     }
 
-    const totalInvested = portfolio.reduce(
+    // Filtrar ativos com dados válidos
+    const validPortfolio = portfolio.filter(asset =>
+      typeof asset.quantity === 'number' && !isNaN(asset.quantity) && asset.quantity > 0 &&
+      typeof asset.avgPrice === 'number' && !isNaN(asset.avgPrice) && asset.avgPrice > 0 &&
+      typeof asset.currentPrice === 'number' && !isNaN(asset.currentPrice)
+    );
+
+    if (validPortfolio.length === 0) {
+      return {
+        totalInvested: 0,
+        totalCurrent: 0,
+        totalProfit: 0,
+        profitPercent: 0,
+        stocks: 0,
+        fiis: 0,
+        totalAssets: 0,
+      };
+    }
+
+    const totalInvested = validPortfolio.reduce(
       (sum, asset) => sum + (asset.quantity * asset.avgPrice),
       0
     );
-    const totalCurrent = portfolio.reduce(
+    const totalCurrent = validPortfolio.reduce(
       (sum, asset) => sum + (asset.quantity * asset.currentPrice),
       0
     );
     const totalProfit = totalCurrent - totalInvested;
     const profitPercent = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
 
-    const stocks = portfolio.filter(a => a.type === 'Ação').length;
-    const fiis = portfolio.filter(a => a.type === 'FII').length;
+    const stocks = validPortfolio.filter(a => a.type === 'Ação').length;
+    const fiis = validPortfolio.filter(a => a.type === 'FII').length;
 
     return {
       totalInvested,
@@ -42,7 +61,7 @@ const PortfolioSummary = ({ portfolio }) => {
       profitPercent,
       stocks,
       fiis,
-      totalAssets: portfolio.length,
+      totalAssets: validPortfolio.length,
     };
   }, [portfolio]);
 

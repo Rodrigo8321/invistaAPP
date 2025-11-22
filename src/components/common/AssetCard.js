@@ -3,45 +3,33 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { colors } from '../../styles/colors';
 import { watchlistService } from '../../services/watchlistService';
+import { exchangeRateService } from '../../services/exchangeRateService';
+import { formatCurrency } from '../../utils/formatters';
 
-/**
- * Componente reutilizável para exibir um card de ativo.
- * 
- * Responsabilidades:
- * - Exibir informações resumidas de um ativo (ticker, nome, preço, performance).
- * - Gerenciar o estado de "favorito" do ativo, consultando o `watchlistService`.
- * - Permitir que o usuário adicione ou remova o ativo da lista de favoritos.
- * - Navegar para a tela de detalhes do ativo (`AssetDetail`) ao ser pressionado.
- * 
- * @param {object} props
- * @param {object} props.asset - O objeto contendo os dados do ativo a ser exibido.
- * @param {function} [props.onPress] - Uma função opcional para substituir a ação de navegação padrão.
- */
 const AssetCard = ({ asset, onPress }) => {
-  // Hook do React Navigation para obter acesso ao objeto de navegação.
   const navigation = useNavigation();
-  // Estado local para controlar se o ícone de estrela deve estar preenchido ou não.
   const [isFavorited, setIsFavorited] = useState(false);
+  const [priceInBRL, setPriceInBRL] = useState(asset.currentPrice);
 
-  /**
-   * `useEffect` é usado para verificar o status de favorito do ativo assim que o componente é montado
-   * ou sempre que o `asset.ticker` mudar. Isso garante que o estado `isFavorited` esteja sempre sincronizado.
-   */
   useEffect(() => {
     checkIfFavorited();
+    convertPriceIfNeeded();
   }, [asset.ticker]);
 
-  // Função assíncrona que consulta o serviço para saber se o ativo está na watchlist.
   const checkIfFavorited = async () => {
     const isFav = await watchlistService.isInWatchlist(asset.ticker);
     setIsFavorited(isFav);
   };
 
-  /**
-   * Lida com o clique no card.
-   * Se uma função `onPress` foi passada via props, ela será executada.
-   * Caso contrário, a ação padrão é navegar para a tela 'AssetDetail', passando o objeto `asset` como parâmetro.
-   */
+  const convertPriceIfNeeded = async () => {
+    if (asset.currency === 'USD') {
+      const converted = await exchangeRateService.convertUSDtoBRL(asset.currentPrice);
+      setPriceInBRL(converted);
+    } else {
+      setPriceInBRL(asset.currentPrice);
+    }
+  };
+
   const handlePress = () => {
     if (onPress) {
       onPress();
@@ -50,11 +38,6 @@ const AssetCard = ({ asset, onPress }) => {
     }
   };
 
-  /**
-   * Lida com o clique no botão de estrela.
-   * Chama o serviço para adicionar/remover o ativo da watchlist e atualiza o estado local
-   * para refletir a mudança visualmente de forma imediata.
-   */
   const handleToggleFavorite = async () => {
     try {
       const added = await watchlistService.toggleWatchlist(asset.ticker);
@@ -64,15 +47,46 @@ const AssetCard = ({ asset, onPress }) => {
     }
   };
 
-  // Cálculos de performance do ativo.
+  // Ícones baseados no tipo e país
+  const getAssetIcon = () => {
+    const icons = {
+      'Ação': '📈',
+      'FII': '🏢',
+      'Stock': '🇺🇸',
+      'REIT': '🏘️',
+      'ETF': '📦',
+      'Crypto': '💰',
+    };
+    return icons[asset.type] || '📊';
+  };
+
+  // Badge de país
+  const getCountryBadge = () => {
+    const badges = {
+      'BR': '🇧🇷',
+      'US': '🇺🇸',
+      'Global': '🌐',
+    };
+    return badges[asset.country] || '';
+  };
+
+  // Cálculos
   const profit = (asset.currentPrice - asset.avgPrice) * asset.quantity;
   const profitPercent = ((asset.currentPrice - asset.avgPrice) / asset.avgPrice) * 100;
   const isPositive = profit >= 0;
 
+  // Formatação de preço
+  const formatPrice = (price, currency) => {
+    if (currency === 'USD') {
+      return `$${price.toFixed(2)}`;
+    }
+    return formatCurrency(price);
+  };
+
   return (
     <TouchableOpacity style={styles.container} onPress={handlePress}>
       {/* Star Button */}
-      <TouchableOpacity // Botão de favoritar posicionado de forma absoluta no canto superior direito.
+      <TouchableOpacity
         style={styles.starButton}
         onPress={handleToggleFavorite}
       >
@@ -81,27 +95,42 @@ const AssetCard = ({ asset, onPress }) => {
         </Text>
       </TouchableOpacity>
 
-      {/* Cabeçalho do Card: Ícone, Ticker e Nome */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Text style={styles.icon}>
-            {asset.type === 'Ação' ? '📈' : '🏢'}
-          </Text>
+          <Text style={styles.icon}>{getAssetIcon()}</Text>
         </View>
         <View style={styles.info}>
-          <Text style={styles.ticker}>{asset.ticker}</Text>
+          <View style={styles.tickerRow}>
+            <Text style={styles.ticker}>{asset.ticker}</Text>
+            <Text style={styles.countryBadge}>{getCountryBadge()}</Text>
+          </View>
           <Text style={styles.name} numberOfLines={1}>{asset.name}</Text>
+          <Text style={styles.type}>{asset.type}</Text>
         </View>
       </View>
 
-      {/* Rodapé do Card: Preço Atual e Variação Percentual */}
+      {/* Footer */}
       <View style={styles.footer}>
-        <View>
+        <View style={styles.priceContainer}>
           <Text style={styles.priceLabel}>Preço Atual</Text>
-          <Text style={styles.price}>R$ {asset.currentPrice.toFixed(2)}</Text>
+          {asset.currency === 'USD' ? (
+            <View>
+              <Text style={styles.price}>
+                {formatPrice(asset.currentPrice, 'USD')}
+              </Text>
+              <Text style={styles.priceConverted}>
+                ≈ {formatPrice(priceInBRL, 'BRL')}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.price}>
+              {formatPrice(asset.currentPrice, 'BRL')}
+            </Text>
+          )}
         </View>
+
         <View style={[styles.changeBadge, {
-          // A cor do badge de performance muda dinamicamente se o lucro for positivo ou negativo.
           backgroundColor: isPositive ? colors.success + '20' : colors.danger + '20'
         }]}>
           <Text style={[styles.changeText, {
@@ -161,14 +190,35 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 2,
   },
+  tickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  countryBadge: {
+    fontSize: 14,
+  },
   name: {
     color: colors.textSecondary,
     fontSize: 13,
+    marginBottom: 2,
+  },
+  type: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    backgroundColor: colors.border,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  priceContainer: {
+    flex: 1,
   },
   priceLabel: {
     color: colors.textSecondary,
@@ -179,6 +229,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  priceConverted: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
   },
   changeBadge: {
     paddingHorizontal: 12,

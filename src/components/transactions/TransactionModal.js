@@ -33,7 +33,7 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
     }
 
     const qty = parseFloat(quantity);
-    const price = parseFloat(unitPrice.replace(',', '.'));
+    const price = parseFloat(unitPrice.replace(',', '.').replace(/\s/g, ''));
 
     if (qty <= 0 || price <= 0) {
       Alert.alert('Erro', 'Valores devem ser maiores que zero');

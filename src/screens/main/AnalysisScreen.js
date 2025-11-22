@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { colors } from '../../styles/colors';
 import { mockPortfolio } from '../../data/mockAssets';
-import { marketService } from '../../services/marketService';
+import { exchangeRateService } from '../../services/exchangeRateService';
 
 import PortfolioSummary from '../../components/analysis/PortfolioSummary';
 import DiversificationChart from '../../components/analysis/DiversificationChart';
@@ -20,39 +20,20 @@ import SectorDistribution from '../../components/analysis/SectorDistribution';
 const AnalysisScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [portfolio, setPortfolio] = useState(mockPortfolio);
+  const [exchangeRate, setExchangeRate] = useState(5.0);
 
-  // Carregar dados reais ao montar
   useEffect(() => {
-    loadRealPrices();
+    loadExchangeRate();
   }, []);
 
-  const loadRealPrices = async () => {
-    try {
-      const tickers = mockPortfolio.map(a => a.ticker);
-      const quotes = await marketService.getQuotes(tickers);
-
-      // Mesmo padrão do DashboardScreen
-      const updated = mockPortfolio.map(asset => {
-        const quote = quotes.find(q => q.ticker === asset.ticker);
-        if (quote) {
-          return {
-            ...asset,
-            currentPrice: quote.currentPrice,
-            change: quote.change,
-            changePercent: quote.changePercent,
-          };
-        }
-        return asset;
-      });
-
-      setPortfolio(updated);
-    } catch (error) {
-      console.error('Erro ao carregar preços:', error);
-    }
+  const loadExchangeRate = async () => {
+    const rate = await exchangeRateService.getUSDtoBRL();
+    setExchangeRate(rate);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
+    await loadExchangeRate();
     await new Promise(resolve => setTimeout(resolve, 1500));
     setRefreshing(false);
   };
@@ -73,18 +54,30 @@ const AnalysisScreen = () => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>🔍 Análise</Text>
-          <Text style={styles.subtitle}>Análise completa do seu portfolio</Text>
+          <Text style={styles.subtitle}>Análise completa do seu portfolio internacional</Text>
+        </View>
+
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoIcon}>🌍</Text>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>Portfolio Global</Text>
+            <Text style={styles.infoText}>
+              Análise completa de {portfolio.length} ativos distribuídos entre Brasil, EUA e criptomoedas.
+              Valores em USD convertidos automaticamente para BRL (Taxa: R$ {exchangeRate.toFixed(2)}/USD).
+            </Text>
+          </View>
         </View>
 
         {/* Resumo Geral */}
         <PortfolioSummary portfolio={portfolio} />
 
-        {/* Diversificação */}
+        {/* Diversificação por Tipo */}
         <View style={styles.sectionContainer}>
           <DiversificationChart portfolio={portfolio} />
         </View>
 
-        {/* Performance */}
+        {/* Performance Comparison */}
         <View style={styles.sectionContainer}>
           <PerformanceComparison portfolio={portfolio} />
         </View>
@@ -97,6 +90,48 @@ const AnalysisScreen = () => {
         {/* Recomendações */}
         <View style={styles.sectionContainer}>
           <RecommendationsCard portfolio={portfolio} />
+        </View>
+
+        {/* Estatísticas Internacionais */}
+        <View style={styles.statsCard}>
+          <Text style={styles.statsTitle}>📊 Estatísticas Globais</Text>
+          
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Ativos Brasileiros</Text>
+            <Text style={styles.statValue}>
+              {portfolio.filter(a => a.country === 'BR').length} ativos
+            </Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Ativos Americanos</Text>
+            <Text style={styles.statValue}>
+              {portfolio.filter(a => a.country === 'US').length} ativos
+            </Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Criptomoedas</Text>
+            <Text style={styles.statValue}>
+              {portfolio.filter(a => a.country === 'Global').length} ativos
+            </Text>
+          </View>
+
+          <View style={styles.statDivider} />
+
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Total de Tipos</Text>
+            <Text style={styles.statValue}>
+              {new Set(portfolio.map(a => a.type)).size} tipos
+            </Text>
+          </View>
+
+          <View style={styles.statRow}>
+            <Text style={styles.statLabel}>Total de Setores</Text>
+            <Text style={styles.statValue}>
+              {new Set(portfolio.map(a => a.sector)).size} setores
+            </Text>
+          </View>
         </View>
 
         {/* Footer Spacing */}
@@ -120,8 +155,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
     color: colors.text,
+    marginBottom: 4,
   },
-  infoBox: {
+  subtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  infoCard: {
+    flexDirection: 'row',
     backgroundColor: colors.primary + '20',
     borderWidth: 1,
     borderColor: colors.primary + '40',
@@ -130,264 +171,61 @@ const styles = StyleSheet.create({
     margin: 20,
     marginBottom: 12,
   },
-  infoText: {
-    color: colors.primary,
-    fontSize: 13,
-    lineHeight: 20,
+  infoIcon: {
+    fontSize: 28,
+    marginRight: 12,
   },
-  content: {
+  infoContent: {
     flex: 1,
-    padding: 20,
-    paddingTop: 8,
   },
-  analysisCard: {
+  infoTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  infoText: {
+    color: colors.text,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  sectionContainer: {
+    marginBottom: 8,
+  },
+  statsCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 24,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  ticker: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  name: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  sector: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  recommendationBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  recommendationText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  scoreText: {
-    color: '#ffffff',
-    fontSize: 11,
-    opacity: 0.9,
-  },
-  metrics: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  metric: {
-    flex: 1,
-  },
-  metricLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  metricValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  preview: {
-    backgroundColor: colors.success + '20',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  previewText: {
-    color: colors.success,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  previewWeak: {
-    backgroundColor: colors.warning + '20',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  previewTextWeak: {
-    color: colors.warning,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  tapHint: {
-    color: colors.primary,
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    maxHeight: '90%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  modalTicker: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  modalName: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
-  closeButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  closeButtonText: {
-    fontSize: 24,
-    color: colors.text,
-  },
-  modalRecommendation: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  modalRecommendationText: {
-    color: '#ffffff',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  modalScore: {
-    color: '#ffffff',
-    fontSize: 16,
-    opacity: 0.9,
-  },
-  modalScroll: {
-    padding: 20,
-  },
-  modalSection: {
+  statsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
-    marginTop: 8,
     marginBottom: 16,
   },
-  fundamentalsGrid: {
+  statRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -6,
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
   },
-  fundamentalItem: {
-    width: '31%',
-    backgroundColor: colors.background,
-    padding: 12,
-    borderRadius: 8,
-    marginHorizontal: '1%',
-    marginBottom: 12,
-  },
-  fundamentalLabel: {
-    fontSize: 11,
+  statLabel: {
+    fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 4,
   },
-  fundamentalValue: {
+  statValue: {
     fontSize: 14,
     fontWeight: 'bold',
     color: colors.text,
   },
-  strengthItem: {
-    backgroundColor: colors.success + '20',
-    borderWidth: 1,
-    borderColor: colors.success + '40',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  strengthHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  strengthLabel: {
-    color: colors.success,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  strengthValue: {
-    color: colors.success,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  strengthReason: {
-    color: colors.success,
-    fontSize: 12,
-    opacity: 0.8,
-  },
-  weaknessItem: {
-    backgroundColor: colors.warning + '20',
-    borderWidth: 1,
-    borderColor: colors.warning + '40',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  weaknessHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  weaknessLabel: {
-    color: colors.warning,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  weaknessValue: {
-    color: colors.warning,
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  weaknessReason: {
-    color: colors.warning,
-    fontSize: 12,
-    opacity: 0.8,
-  },
-  alertItem: {
-    backgroundColor: colors.danger + '20',
-    borderWidth: 1,
-    borderColor: colors.danger + '40',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  alertText: {
-    color: colors.danger,
-    fontSize: 13,
+  statDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 8,
   },
 });
 

@@ -17,18 +17,25 @@ import { mockPortfolio } from '../../data/mockAssets';
 import TransactionCard from '../../components/transactions/TransactionCard';
 import TransactionModal from '../../components/transactions/TransactionModal';
 
-const TransactionHistoryScreen = () => {
+const TransactionHistoryScreen = ({ route, navigation }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [selectedAsset, setSelectedAsset] = useState(null); // CORREÇÃO: Estado para asset selecionado
+
   const [filterType, setFilterType] = useState('all');
   const [filterPeriod, setFilterPeriod] = useState('todos');
 
   useEffect(() => {
     loadTransactions();
-  }, []);
+    
+    // Verifica se deve abrir modal automaticamente
+    if (route.params?.openModal) {
+      setTimeout(() => {
+        handleOpenModal();
+      }, 500); // Pequeno delay para garantir que a tela carregou
+    }
+  }, [route.params]);
 
   const loadTransactions = async () => {
     setLoading(true);
@@ -290,15 +297,12 @@ const TransactionHistoryScreen = () => {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* CORREÇÃO: Passa asset selecionado corretamente */}
-      {selectedAsset && (
-        <TransactionModal
-          visible={modalVisible}
-          onClose={() => setModalVisible(false)}
-          asset={selectedAsset}
-          onTransactionAdded={loadTransactions}
-        />
-      )}
+      <TransactionModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        portfolio={mockPortfolio}
+        onTransactionAdded={loadTransactions}
+      />
     </SafeAreaView>
   );
 };

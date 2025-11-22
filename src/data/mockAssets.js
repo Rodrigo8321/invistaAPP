@@ -1,9 +1,15 @@
-export const mockPortfolio = [
+import { mockStocksUS } from './mockStocksUS';
+import { mockCrypto } from './mockCrypto';
+
+// Ativos Brasileiros (já existentes)
+const mockAssetsBR = [
   {
     id: 1,
     ticker: 'PETR4',
     name: 'Petrobras PN',
     type: 'Ação',
+    country: 'BR',
+    currency: 'BRL',
     quantity: 100,
     avgPrice: 38.50,
     currentPrice: 42.30,
@@ -23,6 +29,8 @@ export const mockPortfolio = [
     ticker: 'VALE3',
     name: 'Vale ON',
     type: 'Ação',
+    country: 'BR',
+    currency: 'BRL',
     quantity: 80,
     avgPrice: 65.20,
     currentPrice: 68.90,
@@ -42,6 +50,8 @@ export const mockPortfolio = [
     ticker: 'ITSA4',
     name: 'Itaúsa PN',
     type: 'Ação',
+    country: 'BR',
+    currency: 'BRL',
     quantity: 200,
     avgPrice: 9.80,
     currentPrice: 10.45,
@@ -61,6 +71,8 @@ export const mockPortfolio = [
     ticker: 'MXRF11',
     name: 'Maxi Renda',
     type: 'FII',
+    country: 'BR',
+    currency: 'BRL',
     quantity: 150,
     avgPrice: 10.20,
     currentPrice: 10.65,
@@ -77,6 +89,8 @@ export const mockPortfolio = [
     ticker: 'HGLG11',
     name: 'CSHG Logística',
     type: 'FII',
+    country: 'BR',
+    currency: 'BRL',
     quantity: 100,
     avgPrice: 165.00,
     currentPrice: 172.50,
@@ -89,3 +103,59 @@ export const mockPortfolio = [
     }
   },
 ];
+
+// Consolidar todos os ativos
+export const mockPortfolio = [
+  ...mockAssetsBR,
+  ...mockStocksUS,
+  ...mockCrypto,
+];
+
+// Exportar também separadamente para uso específico
+export { mockAssetsBR, mockStocksUS, mockCrypto };
+
+// Função helper para filtrar por país
+export const getAssetsByCountry = (country) => {
+  if (country === 'all') return mockPortfolio;
+  return mockPortfolio.filter(asset => asset.country === country);
+};
+
+// Função helper para filtrar por tipo
+export const getAssetsByType = (type) => {
+  if (type === 'all') return mockPortfolio;
+  return mockPortfolio.filter(asset => asset.type === type);
+};
+
+// Função helper para filtrar por país E tipo
+export const getAssetsByCountryAndType = (country, type) => {
+  let filtered = mockPortfolio;
+
+  if (country !== 'all') {
+    filtered = filtered.filter(asset => asset.country === country);
+  }
+
+  if (type !== 'all') {
+    filtered = filtered.filter(asset => asset.type === type);
+  }
+
+  return filtered;
+};
+
+// Estatísticas do portfolio
+export const getPortfolioStats = () => {
+  const totalAssets = mockPortfolio.length;
+  const byCountry = mockPortfolio.reduce((acc, asset) => {
+    acc[asset.country] = (acc[asset.country] || 0) + 1;
+    return acc;
+  }, {});
+  const byType = mockPortfolio.reduce((acc, asset) => {
+    acc[asset.type] = (acc[asset.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  return {
+    total: totalAssets,
+    byCountry,
+    byType,
+  };
+};

@@ -1,22 +1,34 @@
 import React from 'react';
-import { useAuth } from '../screens/main/AuthContext'; // CORREÇÃO: Apontando para o local correto do arquivo
-import LoadingScreen from '../screens/LoadingScreen';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { useAuth } from '../contexts/AuthContext';
 import { AuthNavigator } from './AuthNavigator';
 import { AppNavigator } from './AppNavigator';
+import { colors } from '../styles/colors';
 
 const RootNavigator = () => {
   const { user, isLoading } = useAuth();
 
-  // Enquanto o app verifica se o usuário está logado, mostramos uma tela de loading.
+  // Enquanto verifica autenticação, mostra loading
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
   }
 
-  // Se não há usuário, mostra o fluxo de autenticação.
-  // Se há um usuário, mostra o fluxo principal do app.
-  return (
-    user ? <AppNavigator /> : <AuthNavigator />
-  );
+  // Se usuário logado, mostra app principal
+  // Se não, mostra telas de autenticação
+  return user ? <AppNavigator /> : <AuthNavigator />;
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+  },
+});
 
 export default RootNavigator;

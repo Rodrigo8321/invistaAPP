@@ -14,12 +14,14 @@ import { formatCurrency } from '../../utils/formatters';
 import { marketService } from '../../services/marketService';
 import PriceChart from '../../components/common/PriceChart';
 import FundamentalsCard from '../../components/common/FundamentalsCard';
+import CreateAlertModal from '../../components/alerts/CreateAlertModal';
 
 const AssetDetailScreen = ({ route, navigation }) => {
   const { asset } = route.params;
   const [chartPeriod, setChartPeriod] = useState(30);
   const [loading, setLoading] = useState(true);
   const [realAsset, setRealAsset] = useState(asset);
+  const [alertModalVisible, setAlertModalVisible] = useState(false);
 
   // Carregar preço real ao montar
   useEffect(() => {
@@ -92,6 +94,10 @@ const AssetDetailScreen = ({ route, navigation }) => {
     Alert.alert('💫 Em breve', 'Funcionalidade de Watchlist será adicionada em breve', [
       { text: 'OK' }
     ]);
+  };
+
+  const handleCreateAlert = () => {
+    setAlertModalVisible(true);
   };
 
   return (
@@ -234,7 +240,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
 
         {/* Botões de Ação */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, styles.buyButton]}
             onPress={handleBuy}
             disabled={loading}
@@ -249,7 +255,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, styles.sellButton]}
             onPress={handleSell}
             disabled={loading}
@@ -264,7 +270,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.actionButton, styles.watchlistButton]}
             onPress={handleAddToWatchlist}
             disabled={loading}
@@ -272,10 +278,25 @@ const AssetDetailScreen = ({ route, navigation }) => {
             <Text style={styles.actionButtonIcon}>⭐</Text>
             <Text style={styles.actionButtonText}>Favoritar</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.alertButton}
+            onPress={() => setAlertModalVisible(true)}
+            disabled={loading}
+          >
+            <Text style={styles.alertButtonText}>🔔 Criar Alerta</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* Modal de Criação de Alerta */}
+      <CreateAlertModal
+        visible={alertModalVisible}
+        onClose={() => setAlertModalVisible(false)}
+        asset={realAsset}
+      />
     </SafeAreaView>
   );
 };
@@ -462,6 +483,20 @@ const styles = StyleSheet.create({
   },
   watchlistButton: {
     backgroundColor: colors.secondary,
+  },
+  alertButton: {
+    flex: 1,
+    padding: 16,
+    backgroundColor: colors.warning + '20',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    alignItems: 'center',
+  },
+  alertButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.warning,
   },
   actionButtonIcon: {
     fontSize: 18,

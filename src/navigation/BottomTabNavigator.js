@@ -8,6 +8,7 @@ import PortfolioScreen from '../screens/main/PortfolioScreen';
 import AnalysisScreen from '../screens/main/AnalysisScreen';
 import WatchlistScreen from '../screens/main/WatchlistScreen';
 import TransactionHistoryScreen from '../screens/main/TransactionHistoryScreen'; // ← ADICIONAR
+import AlertsScreen from '../screens/main/AlertsScreen';
 import SettingsScreen from '../screens/main/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
@@ -18,7 +19,8 @@ const TabIcon = ({ name, focused }) => {
     Dashboard: { default: '📊', focused: '📈' },
     Portfolio: { default: '💼', focused: '💰' },
     Watchlist: { default: '⭐', focused: '🌟' },
-    Transactions: { default: '📋', focused: '📝' }, // ← ADICIONAR
+    Transactions: { default: '📋', focused: '📝' },
+    Alerts: { default: '🔔', focused: '🔕' },
     Analysis: { default: '🔍', focused: '🎯' },
     Settings: { default: '⚙️', focused: '⚙' },
   };
@@ -89,9 +91,20 @@ export const BottomTabNavigator = () => {
         component={AnalysisScreen}
         options={{ tabBarLabel: 'Análise' }}
       />
-      
-      <Tab.Screen 
-        name="Settings" 
+
+      <Tab.Screen
+        name="Alerts"
+        component={AlertsScreen}
+        options={{
+          tabBarLabel: 'Alertas',
+          tabBarIcon: ({ color, size }) => (
+            <Text style={{ fontSize: size }}>🔔</Text>
+          ),
+        }}
+      />
+
+      <Tab.Screen
+        name="Settings"
         component={SettingsScreen}
         options={{ tabBarLabel: 'Config' }}
       />
