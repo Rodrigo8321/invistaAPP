@@ -31,6 +31,7 @@ const DashboardScreen = ({ navigation }) => {
   const filterMap = { acao: 'Ação', fii: 'FII', stock: 'Stock', reit: 'REIT', etf: 'ETF', crypto: 'Crypto' };
   const [transactionModalVisible, setTransactionModalVisible] = useState(false);
   const [weeklyStartPrices, setWeeklyStartPrices] = useState({});
+  const [lastManualUpdate, setLastManualUpdate] = useState(null);
 
   // ========== CARREGAR DADOS REAIS ==========
   const loadRealData = async (showLoader = true) => {
@@ -95,6 +96,17 @@ const DashboardScreen = ({ navigation }) => {
   const onRefresh = () => {
     setRefreshing(true);
     loadRealData(false);
+  };
+
+  const handleManualRefresh = () => {
+    const now = new Date();
+    if (!lastManualUpdate || (now - lastManualUpdate) >= 60 * 60 * 1000) { // 1 hour in ms
+      setLastManualUpdate(now);
+      setRefreshing(true);
+      loadRealData(false);
+    } else {
+      Alert.alert('Atenção', 'Você só pode atualizar uma vez por hora.');
+    }
   };
 
   // ========== CÁLCULOS ==========
@@ -239,14 +251,6 @@ const DashboardScreen = ({ navigation }) => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
       >
         {/* HERO SECTION - Portfolio Value */}
         <View style={styles.heroSection}>
@@ -498,13 +502,13 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={styles.quickActionIcon}>⭐</Text>
               <Text style={styles.quickActionText}>Favoritos</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              onPress={() => loadRealData()}
-            >
-              <Text style={styles.quickActionIcon}>🔄</Text>
-              <Text style={styles.quickActionText}>Atualizar</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickActionCard}
+                onPress={handleManualRefresh}
+              >
+                <Text style={styles.quickActionIcon}>🔄</Text>
+                <Text style={styles.quickActionText}>Atualizar</Text>
+              </TouchableOpacity>
           </View>
         </View>
 

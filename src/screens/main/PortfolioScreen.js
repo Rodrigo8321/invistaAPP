@@ -15,11 +15,12 @@ import { colors } from '../../styles/colors';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { usePortfolio } from '../../contexts/PortfolioContext';
 import { fetchMultipleQuotes, fetchExchangeRate } from '../../services/marketService';
+import AddAssetModal from '../../components/transactions/AddAssetModal';
 
 const { width } = Dimensions.get('window');
 
 const PortfolioScreen = ({ navigation }) => {
-  const { portfolio, loading: portfolioLoading, error: portfolioError } = usePortfolio();
+  const { portfolio, loading: portfolioLoading, error: portfolioError, addAsset } = usePortfolio();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCountry, setSelectedCountry] = useState('all'); // all, BR, US, crypto
   const [selectedType, setSelectedType] = useState('all'); // all, Ação, FII, Stock, REIT, ETF, Crypto
@@ -28,21 +29,21 @@ const PortfolioScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [realPrices, setRealPrices] = useState({});
   const [exchangeRate, setExchangeRate] = useState(5.0);
+  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
 
-  // ========== LOAD REAL DATA ==========
   const loadRealData = async (showLoader = true) => {
     try {
       if (showLoader) setLoading(true);
-      
+
       const rate = await fetchExchangeRate();
       setExchangeRate(rate);
 
       const quotes = await fetchMultipleQuotes(portfolio);
-      
+
       const pricesMap = {};
       quotes.forEach((quote, index) => {
         const asset = portfolio[index];
-        
+
         if (quote.error) {
           pricesMap[asset.ticker] = {
             price: asset.currentPrice,
@@ -69,23 +70,32 @@ const PortfolioScreen = ({ navigation }) => {
 
   useEffect(() => {
     loadRealData();
-  }, []);
+  }, [portfolio]);
 
   const onRefresh = () => {
     setRefreshing(true);
     loadRealData(false);
   };
 
-  // ========== CALCULATIONS WITH REAL PRICES ==========
+  const handleAddAsset = async (newAsset) => {
+    try {
+      await addAsset(newAsset);
+      setIsAddModalVisible(false);
+      onRefresh();
+    } catch (error) {
+      console.error('Erro ao adicionar ativo:', error);
+    }
+  };
+
   const assetsWithRealPrices = useMemo(() => {
-    return portfolio.map(asset => {
+    return portfolio.map((asset) => {
       const realPrice = realPrices[asset.ticker];
       const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
       const priceInBRL = asset.currency === 'USD' ? currentPrice * exchangeRate : currentPrice;
       const invested = asset.averagePrice * asset.quantity;
       const current = priceInBRL * asset.quantity;
       const profit = current - invested;
-      const profitPercent = (profit / invested) * 100;
+      const profitPercent = invested !== 0 ? (profit / invested) * 100 : 0;
 
       return {
         ...asset,
@@ -99,34 +109,28 @@ const PortfolioScreen = ({ navigation }) => {
     });
   }, [portfolio, realPrices, exchangeRate]);
 
-  // ========== FILTERS AND SEARCH ==========
   const filteredAssets = useMemo(() => {
     let filtered = assetsWithRealPrices;
 
-    // Filter by country
     if (selectedCountry === 'BR') {
-      filtered = filtered.filter(a => a.country === '🇧🇷');
+      filtered = filtered.filter((a) => a.country === '🇧🇷');
     } else if (selectedCountry === 'US') {
-      filtered = filtered.filter(a => a.country === '🇺🇸');
+      filtered = filtered.filter((a) => a.country === '🇺🇸');
     } else if (selectedCountry === 'crypto') {
-      filtered = filtered.filter(a => a.country === '🌐');
+      filtered = filtered.filter((a) => a.country === '🌐');
     }
 
-    // Filter by type
     if (selectedType !== 'all') {
-      filtered = filtered.filter(a => a.type === selectedType);
+      filtered = filtered.filter((a) => a.type === selectedType);
     }
 
-    // Busca por nome ou ticker
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(a => 
-        a.ticker.toLowerCase().includes(query) ||
-        a.name.toLowerCase().includes(query)
+      filtered = filtered.filter(
+        (a) => a.ticker.toLowerCase().includes(query) || a.name.toLowerCase().includes(query)
       );
     }
 
-    // Sorting
     if (sortBy === 'profit') {
       filtered.sort((a, b) => b.profitPercent - a.profitPercent);
     } else if (sortBy === 'name') {
@@ -138,7 +142,6 @@ const PortfolioScreen = ({ navigation }) => {
     return filtered;
   }, [assetsWithRealPrices, selectedCountry, selectedType, searchQuery, sortBy]);
 
-  // ========== STATISTICS ==========
   const stats = useMemo(() => {
     const filtered = filteredAssets;
     const totalInvested = filtered.reduce((sum, a) => sum + a.invested, 0);
@@ -155,7 +158,6 @@ const PortfolioScreen = ({ navigation }) => {
     };
   }, [filteredAssets]);
 
-  // ========== LOADING STATE ==========
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -173,28 +175,19 @@ const PortfolioScreen = ({ navigation }) => {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* HEADER */}
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Portfólio</Text>
             <Text style={styles.subtitle}>{stats.count} ativos</Text>
           </View>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.navigate('TransactionHistory')}
-          >
+          <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
             <Text style={styles.addButtonText}>+ Adicionar</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ESTATÍSTICAS RÁPIDAS */}
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Investido</Text>
@@ -208,22 +201,15 @@ const PortfolioScreen = ({ navigation }) => {
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Lucro</Text>
-            <Text style={[
-              styles.statValue,
-              { color: stats.profit >= 0 ? colors.success : colors.danger }
-            ]}>
+            <Text style={[styles.statValue, { color: stats.profit >= 0 ? colors.success : colors.danger }]}>
               {formatCurrency(stats.profit)}
             </Text>
-            <Text style={[
-              styles.statPercent,
-              { color: stats.profit >= 0 ? colors.success : colors.danger }
-            ]}>
+            <Text style={[styles.statPercent, { color: stats.profit >= 0 ? colors.success : colors.danger }]}>
               {stats.profit >= 0 ? '▲' : '▼'} {formatPercent(Math.abs(stats.profitPercent))}
             </Text>
           </View>
         </View>
 
-        {/* SEARCH */}
         <View style={styles.searchContainer}>
           <Text style={styles.searchIcon}>🔍</Text>
           <TextInput
@@ -240,7 +226,6 @@ const PortfolioScreen = ({ navigation }) => {
           )}
         </View>
 
-        {/* FILTERS - COUNTRY */}
         <View style={styles.filtersSection}>
           <Text style={styles.filterLabel}>Região:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -279,7 +264,6 @@ const PortfolioScreen = ({ navigation }) => {
           </ScrollView>
         </View>
 
-        {/* FILTERS - TYPE */}
         <View style={styles.filtersSection}>
           <Text style={styles.filterLabel}>Tipo:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -326,7 +310,6 @@ const PortfolioScreen = ({ navigation }) => {
           </ScrollView>
         </View>
 
-        {/* SORTING */}
         <View style={styles.sortSection}>
           <Text style={styles.sortLabel}>Ordenar por:</Text>
           <View style={styles.sortButtons}>
@@ -357,7 +340,6 @@ const PortfolioScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* ASSETS LIST */}
         <View style={styles.assetsSection}>
           <Text style={styles.assetsSectionTitle}>
             {filteredAssets.length} {filteredAssets.length === 1 ? 'Ativo' : 'Ativos'}
@@ -366,8 +348,8 @@ const PortfolioScreen = ({ navigation }) => {
           {filteredAssets.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateIcon}>🔍</Text>
-            <Text style={styles.emptyStateText}>Nenhum ativo encontrado</Text>
-            <Text style={styles.emptyStateSubtext}>Tente ajustar os filtros</Text>
+              <Text style={styles.emptyStateText}>Nenhum ativo encontrado</Text>
+              <Text style={styles.emptyStateSubtext}>Tente ajustar os filtros</Text>
             </View>
           ) : (
             filteredAssets.map((asset) => (
@@ -394,15 +376,20 @@ const PortfolioScreen = ({ navigation }) => {
                 <View style={styles.assetCardRight}>
                   <Text style={styles.assetValue}>{formatCurrency(asset.current)}</Text>
                   <Text style={styles.assetQuantity}>{asset.quantity} unidades • {formatCurrency(asset.currentPriceReal)}/unidade</Text>
-                  <View style={[
-                    styles.assetProfitBadge,
-                    { backgroundColor: asset.profit >= 0 ? colors.success + '15' : colors.danger + '15' }
-                  ]}>
-                    <Text style={[
-                      styles.assetProfitText,
-                      { color: asset.profit >= 0 ? colors.success : colors.danger }
-                    ]}>
-                      {asset.profit >= 0 ? '+' : ''}{formatCurrency(asset.profit)} ({formatPercent(asset.profitPercent)})
+                  <View
+                    style={[
+                      styles.assetProfitBadge,
+                      { backgroundColor: asset.profit >= 0 ? colors.success + '15' : colors.danger + '15' },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.assetProfitText,
+                        { color: asset.profit >= 0 ? colors.success : colors.danger },
+                      ]}
+                    >
+                      {asset.profit >= 0 ? '+' : ''}
+                      {formatCurrency(asset.profit)} ({formatPercent(asset.profitPercent)})
                     </Text>
                   </View>
                 </View>
@@ -413,59 +400,33 @@ const PortfolioScreen = ({ navigation }) => {
 
         <View style={{ height: 30 }} />
       </ScrollView>
+      <AddAssetModal visible={isAddModalVisible} onClose={() => setIsAddModalVisible(false)} onAddAsset={handleAddAsset} />
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: colors.text,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  scrollView: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 16, fontSize: 16, color: colors.text },
 
-  // HEADER
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: colors.text,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginTop: 4,
-  },
+  title: { fontSize: 28, fontWeight: '800', color: colors.text },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4 },
   addButton: {
     backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
   },
-  addButtonText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '700',
-  },
+  addButtonText: { color: '#ffffff', fontSize: 14, fontWeight: '700' },
 
-  // ESTATÍSTICAS
   statsCard: {
     flexDirection: 'row',
     marginHorizontal: 20,
@@ -476,31 +437,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 6,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  statPercent: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: colors.border,
-  },
+  statItem: { flex: 1, alignItems: 'center' },
+  statLabel: { fontSize: 12, color: colors.textSecondary, marginBottom: 6 },
+  statValue: { fontSize: 16, fontWeight: '700', color: colors.text },
+  statPercent: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+  statDivider: { width: 1, backgroundColor: colors.border },
 
-  // BUSCA
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -513,32 +455,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  searchIcon: {
-    fontSize: 18,
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: colors.text,
-  },
-  clearIcon: {
-    fontSize: 18,
-    color: colors.textSecondary,
-    padding: 4,
-  },
+  searchIcon: { fontSize: 18, marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 15, color: colors.text },
+  clearIcon: { fontSize: 18, color: colors.textSecondary, padding: 4 },
 
-  // FILTROS
-  filtersSection: {
-    marginBottom: 16,
-    paddingLeft: 20,
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
+  filtersSection: { marginBottom: 16, paddingLeft: 20 },
+  filterLabel: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
   filterChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -548,34 +470,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  filterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  filterChipTextActive: {
-    color: '#ffffff',
-  },
+  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  filterChipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  filterChipTextActive: { color: '#ffffff' },
 
-  // ORDENAÇÃO
-  sortSection: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-  },
-  sortLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  sortButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
+  sortSection: { marginHorizontal: 20, marginBottom: 20 },
+  sortLabel: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 8 },
+  sortButtons: { flexDirection: 'row', justifyContent: 'space-between' },
   sortButton: {
     flex: 1,
     paddingVertical: 10,
@@ -585,49 +486,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     alignItems: 'center',
   },
-  sortButtonActive: {
-    backgroundColor: colors.primary + '20',
-    borderColor: colors.primary,
-  },
-  sortButtonText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  sortButtonTextActive: {
-    color: colors.primary,
-  },
+  sortButtonActive: { backgroundColor: colors.primary + '20', borderColor: colors.primary },
+  sortButtonText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  sortButtonTextActive: { color: colors.primary },
 
-  // LISTA DE ATIVOS
-  assetsSection: {
-    paddingHorizontal: 20,
-  },
-  assetsSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 12,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyStateIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
+  assetsSection: { paddingHorizontal: 20 },
+  assetsSectionTitle: { fontSize: 16, fontWeight: '600', color: colors.text, marginBottom: 12 },
+  emptyState: { alignItems: 'center', paddingVertical: 60 },
+  emptyStateIcon: { fontSize: 48, marginBottom: 16 },
+  emptyStateText: { fontSize: 18, fontWeight: '600', color: colors.text, marginBottom: 8 },
+  emptyStateSubtext: { fontSize: 14, color: colors.textSecondary },
 
-  // ASSET CARD
   assetCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -638,11 +507,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  assetCardLeft: {
-    flexDirection: 'row',
-    flex: 1,
-    marginRight: 12,
-  },
+  assetCardLeft: { flexDirection: 'row', flex: 1, marginRight: 12 },
   assetIcon: {
     width: 48,
     height: 48,
@@ -652,58 +517,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  assetIconText: {
-    fontSize: 24,
-  },
-  assetInfo: {
-    flex: 1,
-  },
-  assetTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  assetTicker: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginRight: 6,
-  },
-  mockBadge: {
-    fontSize: 12,
-  },
-  assetName: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginBottom: 2,
-  },
-  assetType: {
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  assetCardRight: {
-    alignItems: 'flex-end',
-  },
-  assetValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  assetQuantity: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    marginBottom: 8,
-  },
-  assetProfitBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  assetProfitText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
+  assetIconText: { fontSize: 24 },
+  assetInfo: { flex: 1 },
+  assetTitleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  assetTicker: { fontSize: 16, fontWeight: '700', color: colors.text, marginRight: 6 },
+  mockBadge: { fontSize: 12 },
+  assetName: { fontSize: 13, color: colors.textSecondary, marginBottom: 2 },
+  assetType: { fontSize: 11, color: colors.textSecondary },
+  assetCardRight: { alignItems: 'flex-end' },
+  assetValue: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  assetQuantity: { fontSize: 11, color: colors.textSecondary, marginBottom: 8 },
+  assetProfitBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  assetProfitText: { fontSize: 12, fontWeight: '700' },
 });
 
 export default PortfolioScreen;

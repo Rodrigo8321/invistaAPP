@@ -9,7 +9,9 @@ import {
   Alert,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../../styles/colors';
 import { transactionService } from '../../services/transactionService';
 
@@ -18,8 +20,19 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
   const [type, setType] = useState('Compra');
   const [quantity, setQuantity] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
+  const [date, setDate] = useState(new Date());
   const [loading, setLoading] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(true);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const onChangeDate = (event, selectedDate) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+    }
+    if (selectedDate) {
+      setDate(selectedDate);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!selectedAsset) {
@@ -48,7 +61,7 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
         type,
         quantity: qty,
         unitPrice: price,
-        date: new Date().toISOString(),
+        date: date.toISOString(),
       };
 
       const success = await transactionService.addTransaction(transaction);
@@ -79,7 +92,9 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
     setType('Compra');
     setQuantity('');
     setUnitPrice('');
+    setDate(new Date());
     setShowAssetPicker(true);
+    setShowDatePicker(false);
   };
 
   const handleClose = () => {
@@ -90,7 +105,6 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
   const handleSelectAsset = (asset) => {
     setSelectedAsset(asset);
     setShowAssetPicker(false);
-    // Preenche o preço atual como sugestão
     setUnitPrice(asset.currentPrice.toFixed(2));
   };
 
@@ -116,7 +130,6 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {showAssetPicker ? (
-              // Asset Picker
               <View style={styles.pickerContainer}>
                 <Text style={styles.pickerTitle}>Selecione um Ativo</Text>
                 <ScrollView style={styles.assetList}>
@@ -144,7 +157,6 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
               </View>
             ) : (
               <>
-                {/* Selected Asset Info */}
                 <TouchableOpacity
                   style={styles.assetInfo}
                   onPress={() => setShowAssetPicker(true)}
@@ -163,7 +175,6 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
                   </View>
                 </TouchableOpacity>
 
-                {/* Type Selector */}
                 <View style={styles.typeSelector}>
                   <TouchableOpacity
                     style={[styles.typeButton, type === 'Compra' && styles.typeButtonActive]}
@@ -184,7 +195,26 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
                   </TouchableOpacity>
                 </View>
 
-                {/* Form */}
+                <View style={styles.datePickerContainer}>
+                  <Text style={styles.inputLabel}>Data da Transação</Text>
+                  <TouchableOpacity
+                    style={styles.datePickerButton}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text style={styles.datePickerButtonText}>{date.toLocaleDateString()}</Text>
+                  </TouchableOpacity>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      testID="dateTimePicker"
+                      value={date}
+                      mode="date"
+                      display="spinner"
+                      onChange={onChangeDate}
+                      maximumDate={new Date()}
+                    />
+                  )}
+                </View>
+
                 <View style={styles.form}>
                   <View style={styles.inputGroup}>
                     <Text style={styles.inputLabel}>Quantidade</Text>
@@ -210,7 +240,6 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
                     />
                   </View>
 
-                  {/* Total Preview */}
                   {quantity && unitPrice && (
                     <View style={styles.totalPreview}>
                       <Text style={styles.totalLabel}>Total Estimado</Text>
@@ -221,7 +250,6 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
                   )}
                 </View>
 
-                {/* Actions */}
                 <View style={styles.actions}>
                   <TouchableOpacity
                     style={[styles.button, styles.cancelButton]}
