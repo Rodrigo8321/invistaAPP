@@ -2,9 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
@@ -12,6 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { colors } from '../../styles/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { mockPortfolio as mockAssets } from '../../data/mockAssets';
 import { fetchMultipleQuotes, fetchExchangeRate, clearCache } from '../../services/marketService';
@@ -27,19 +28,40 @@ const DashboardScreen = ({ navigation }) => {
   const [exchangeRate, setExchangeRate] = useState(5.0);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [errorCount, setErrorCount] = useState(0);
+  // Initialize filter selection for three segments: 'acao', 'fii', 'crypto'
   const [selectedFilter, setSelectedFilter] = useState(['acao']); // array of filters
+
+  // Cards que mostram os três melhores ativos de cada segmento (ação, fii, crypto)
+  // Defensive fix: add default empty array in case assetsWithRealPrices is undefined
+  const topThreeAssetsBySegment = useMemo(() => {
+    const segments = ['acao', 'fii', 'crypto'];
+    const topThreeAssets = {};
+
+    segments.forEach(segment => {
+      const filteredAssets = (assetsWithRealPrices || []).filter(a =>
+        a.type.toLowerCase().replace('ção', 'cao') === segment
+      );
+      // Ordena por variação semanal e pega os três primeiros
+      const sorted = filteredAssets.sort((a, b) => b.weeklyChange - a.weeklyChange);
+      topThreeAssets[segment] = sorted.slice(0, 3);
+    });
+
+    return topThreeAssets;
+  }, [assetsWithRealPrices]);
+
+
   const filterMap = { acao: 'Ação', fii: 'FII', stock: 'Stock', reit: 'REIT', etf: 'ETF', crypto: 'Crypto' };
   const [transactionModalVisible, setTransactionModalVisible] = useState(false);
   const [weeklyStartPrices, setWeeklyStartPrices] = useState({});
   const [lastManualUpdate, setLastManualUpdate] = useState(null);
+  const [transactionDateInput, setTransactionDateInput] = useState(null);
 
-  // ========== CARREGAR DADOS REAIS ==========
-  const loadRealData = async (showLoader = true) => {
+  const loadRealData = async (useCache = true) => {
     try {
-      if (showLoader) setLoading(true);
-
-      const rate = await fetchExchangeRate();
-      setExchangeRate(rate);
+      setLoading(true);
+      if (!useCache) {
+        clearCache();
+      }
 
       const quotes = await fetchMultipleQuotes(portfolio);
 
@@ -116,6 +138,8 @@ const DashboardScreen = ({ navigation }) => {
     let totalStocks = 0;
     let totalCrypto = 0;
     let totalInvestedUSD = 0;
+    let dailyProfitBRL = 0;
+    let totalMonthlyDividends = 0;
 
     portfolio.forEach(asset => {
       const realPrice = realPrices[asset.ticker];
@@ -128,6 +152,9 @@ const DashboardScreen = ({ navigation }) => {
       totalInvested += invested;
       totalCurrent += current;
 
+      // Soma os dividendos mensais de cada ativo
+      totalMonthlyDividends += asset.monthlyDividends || 0;
+
       if (asset.type === 'Crypto') {
         totalCrypto += current;
       } else {
@@ -137,6 +164,9 @@ const DashboardScreen = ({ navigation }) => {
       // Sum invested in USD for stocks, REITs, ETFs
       if (asset.currency === 'USD' && ['Stock', 'REIT', 'ETF'].includes(asset.type)) {
         totalInvestedUSD += invested;
+        // Calcula a variação diária em BRL para ativos em USD
+        const dailyChange = realPrice?.change || 0;
+        dailyProfitBRL += dailyChange * asset.quantity * exchangeRate;
       }
     });
 
@@ -151,6 +181,8 @@ const DashboardScreen = ({ navigation }) => {
       stocksPercent: (totalStocks / totalCurrent) * 100,
       cryptoPercent: (totalCrypto / totalCurrent) * 100,
       investedUSD: totalInvestedUSD,
+      dailyProfitBRL,
+      totalMonthlyDividends,
     };
   }, [portfolio, realPrices, exchangeRate]);
 
@@ -207,7 +239,7 @@ const DashboardScreen = ({ navigation }) => {
   }, [portfolio, realPrices, exchangeRate, weeklyStartPrices]);
 
   // Filtros
-  const filteredAssets = useMemo(() => {
+  const filteredAssetsLocal = useMemo(() => {
     let filtered = assetsWithRealPrices;
 
     if (selectedFilter.length > 0) {
@@ -218,8 +250,8 @@ const DashboardScreen = ({ navigation }) => {
   }, [assetsWithRealPrices, selectedFilter]);
 
   // Top 3 e Worst 3
-  const topPerformers = filteredAssets.slice(0, 3);
-  const worstPerformers = [...filteredAssets].reverse().slice(0, 3);
+  const topPerformers = filteredAssetsLocal.slice(0, 3);
+  const worstPerformers = [...filteredAssetsLocal].reverse().slice(0, 3);
 
   // ========== LOADING STATE ==========
   if (loading) {
@@ -251,6 +283,9 @@ const DashboardScreen = ({ navigation }) => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
       >
         {/* HERO SECTION - Portfolio Value */}
         <View style={styles.heroSection}>
@@ -259,12 +294,15 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={styles.heroGreeting}>Olá! Investidor 👋</Text>
               <Text style={styles.heroSubtitle}>Seu patrimônio hoje</Text>
             </View>
-            <TouchableOpacity
+          {/* Botão de acesso à configuração removido conforme solicitado */}
+          {/*
+          <TouchableOpacity
               style={styles.settingsButton}
               onPress={() => navigation.navigate('Settings')}
             >
               <Text style={styles.settingsIcon}>⚙️</Text>
             </TouchableOpacity>
+          */}
           </View>
 
           <View style={styles.heroValueContainer}>
@@ -284,25 +322,6 @@ const DashboardScreen = ({ navigation }) => {
             </View>
           </View>
 
-          {/* INVESTIMENTO EM USD */}
-          <View style={styles.usdInvestmentSection}>
-            <View style={styles.usdInvestmentCard}>
-              <Text style={styles.usdInvestmentTitle}>Investimento em DOLLAR</Text>
-              <Text style={styles.usdInvestmentSubtitle}>STOCK´S, REITs e ETFs</Text>
-              <View style={styles.usdInvestmentValues}>
-                <View style={styles.usdInvestmentValue}>
-                  <Text style={styles.usdInvestmentLabel}>USD</Text>
-                  <Text style={styles.usdInvestmentAmount}>${stats.investedUSD.toFixed(2)}</Text>
-                </View>
-                <View style={styles.usdInvestmentDivider} />
-                <View style={styles.usdInvestmentValue}>
-                  <Text style={styles.usdInvestmentLabel}>BRL</Text>
-                  <Text style={styles.usdInvestmentAmount}>{formatCurrency(stats.investedUSD * exchangeRate)}</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
           {/* Quick Stats */}
           <View style={styles.quickStats}>
             <View style={styles.quickStatItem}>
@@ -316,11 +335,44 @@ const DashboardScreen = ({ navigation }) => {
             </View>
             <View style={styles.quickStatDivider} />
             <View style={styles.quickStatItem}>
-              <Text style={styles.quickStatLabel}>USD/BRL</Text>
-              <Text style={styles.quickStatValue}>R$ {exchangeRate.toFixed(2)}</Text>
+              <Text style={styles.quickStatLabel}>Dividendos (Mês)</Text>
+              <Text style={styles.quickStatValue}>{formatCurrency(stats.totalMonthlyDividends)}</Text>
             </View>
           </View>
         </View>
+
+        {/* INVESTIMENTO EM USD */}
+        <View style={styles.usdInvestmentSection}>
+          <View style={styles.usdInvestmentCard}>
+            <Text style={styles.usdInvestmentTitle}>Investimento em DOLLAR</Text>
+            <Text style={styles.usdInvestmentSubtitle}>STOCK´S, REITs e ETFs</Text>
+
+            <View style={[
+                styles.dailyChangeBadge,
+                { backgroundColor: stats.dailyProfitBRL >= 0 ? colors.success + '20' : colors.danger + '20' }
+              ]}>
+                <Text style={[
+                  styles.dailyChangeText,
+                  { color: stats.dailyProfitBRL >= 0 ? colors.success : colors.danger }
+                ]}>
+                  Hoje: {stats.dailyProfitBRL >= 0 ? '▲' : '▼'} {formatCurrency(Math.abs(stats.dailyProfitBRL))}
+                </Text>
+              </View>
+
+            <View style={styles.usdInvestmentValues}>
+              <View style={styles.usdInvestmentValue}>
+                <Text style={styles.usdInvestmentLabel}>USD</Text>
+                <Text style={styles.usdInvestmentAmount}>${stats.investedUSD.toFixed(2)}</Text>
+              </View>
+              <View style={styles.usdInvestmentDivider} />
+              <View style={styles.usdInvestmentValue}>
+                <Text style={styles.usdInvestmentLabel}>BRL</Text>
+                <Text style={styles.usdInvestmentAmount}>{formatCurrency(stats.investedUSD * exchangeRate)}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
 
         {/* ALOCAÇÃO */}
         <View style={styles.allocationSection}>
@@ -360,6 +412,34 @@ const DashboardScreen = ({ navigation }) => {
               })}
             </ScrollView>
           </View>
+        </View>
+
+        {/* Cards que mostram os três melhores ativos de cada segmento */}
+        <View style={styles.topCardsSection}>
+          <Text style={styles.sectionTitle}>Top 3 Melhores Ativos por Segmento</Text>
+          {Object.entries(topThreeAssetsBySegment).map(([segment, assets]) => (
+            <View key={segment} style={styles.segmentGroup}>
+              <Text style={styles.segmentTitle}>{segment.toUpperCase()}</Text>
+              <View style={styles.topCardsContainer}>
+                {assets.map((asset) => (
+                  <TouchableOpacity
+                    key={asset.id}
+                    style={styles.topCard}
+                    onPress={() => navigation.navigate('AssetDetail', { asset })}
+                  >
+                    <Text style={styles.topCardTicker}>{asset.ticker}</Text>
+                    <Text numberOfLines={1} style={styles.topCardName}>{asset.name}</Text>
+                    <Text style={styles.topCardProfit}>
+                      {asset.profit >= 0 ? '+' : '-'}{formatCurrency(Math.abs(asset.profit))}
+                    </Text>
+                    <Text style={[styles.topCardProfitPercent, { color: asset.profit >= 0 ? colors.success : colors.danger }]}>
+                      {asset.profitPercent.toFixed(2)}%
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
         </View>
 
         {/* FILTROS */}
@@ -476,7 +556,6 @@ const DashboardScreen = ({ navigation }) => {
             ))}
           </View>
         )}
-
         {/* AÇÕES RÁPIDAS */}
         <View style={styles.quickActionsSection}>
           <Text style={styles.sectionTitle}>Ações Rápidas</Text>
@@ -502,39 +581,26 @@ const DashboardScreen = ({ navigation }) => {
               <Text style={styles.quickActionIcon}>⭐</Text>
               <Text style={styles.quickActionText}>Favoritos</Text>
             </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.quickActionCard}
-                onPress={handleManualRefresh}
-              >
-                <Text style={styles.quickActionIcon}>🔄</Text>
-                <Text style={styles.quickActionText}>Atualizar</Text>
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.quickActionCard}
+              onPress={handleManualRefresh}
+            >
+              <Text style={styles.quickActionIcon}>🔄</Text>
+              <Text style={styles.quickActionText}>Atualizar</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* STATUS */}
-        {lastUpdate && (
-          <View style={styles.statusSection}>
-            <Text style={styles.statusText}>
-              Atualizado às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-            {errorCount > 0 && (
-              <Text style={styles.statusWarning}>
-                {errorCount} ativo(s) usando dados simulados 📍
-              </Text>
-            )}
-          </View>
-        )}
-
-        <View style={{ height: 40 }} />
+            <View style={{ height: 40 }} />
       </ScrollView>
 
-      <TransactionModal
-        visible={transactionModalVisible}
-        onClose={handleTransactionAdded}
-        onTransactionAdded={handleTransactionAdded}
-        portfolio={portfolio}
-      />
+          <TransactionModal
+            visible={transactionModalVisible}
+            onClose={handleTransactionAdded}
+            onTransactionAdded={handleTransactionAdded}
+            initialDateInput={transactionDateInput}
+            portfolio={portfolio}
+          />
     </SafeAreaView>
   );
 };
@@ -542,10 +608,7 @@ const DashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollView: {
-    flex: 1,
+    backgroundColor: '#0F172A',
   },
   loadingContainer: {
     flex: 1,
@@ -581,6 +644,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+    paddingBottom: 80, // Espaço para o card de USD sobrepor
   },
   heroHeader: {
     flexDirection: 'row',
@@ -659,6 +723,11 @@ const styles = StyleSheet.create({
     width: 1,
     height: '100%',
     backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  usdInvestmentSection: {
+    marginTop: -60, // Puxa para cima sobrepondo a base do hero
+    paddingHorizontal: 24,
+    marginBottom: 12,
   },
 
   // ALOCAÇÃO
@@ -869,68 +938,64 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
-  // INVESTIMENTO EM USD
-  usdInvestmentSection: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
+
   usdInvestmentCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: '#1E293B', // Cor de fundo escura para destaque
     padding: 20,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    // Shadow for Android
+    elevation: 16,
   },
   usdInvestmentTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: '#FFFFFF', // Letra branca para contraste
     marginBottom: 4,
   },
   usdInvestmentSubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: '#94A3B8', // Tom de cinza claro
     marginBottom: 16,
   },
   usdInvestmentValues: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
   },
   usdInvestmentValue: {
-    flex: 1,
     alignItems: 'center',
   },
   usdInvestmentLabel: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: '#94A3B8', // Tom de cinza claro
     marginBottom: 4,
   },
   usdInvestmentAmount: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text,
+    color: '#FFFFFF', // Letra branca para contraste
   },
   usdInvestmentDivider: {
     width: 1,
-    height: '100%',
-    backgroundColor: colors.border,
-    marginHorizontal: 16,
+    backgroundColor: '#334155', // Cor do divisor
+  },
+  dailyChangeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+  },
+  dailyChangeText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 
-  // STATUS
-  statusSection: {
-    paddingHorizontal: 20,
-    alignItems: 'center',
-  },
-  statusText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginBottom: 4,
-  },
-  statusWarning: {
-    fontSize: 12,
-    color: colors.warning,
-  },
+
 });
 
 export default DashboardScreen;

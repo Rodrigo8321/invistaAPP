@@ -4,11 +4,11 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   RefreshControl,
 } from 'react-native';
 import { colors } from '../../styles/colors';
 import { mockPortfolio } from '../../data/mockAssets';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { exchangeRateService } from '../../services/exchangeRateService';
 
 import PortfolioSummary from '../../components/analysis/PortfolioSummary';
@@ -144,7 +144,7 @@ const AnalysisScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0F172A',
   },
   header: {
     padding: 20,

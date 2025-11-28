@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+  import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,31 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../../styles/colors';
 import { transactionService } from '../../services/transactionService';
 
-const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) => {
+const DATE_INPUT_FORMAT = /^\d{2}\/\d{2}\/\d{4}$/; // DD/MM/YYYY
+
+const parseDateInput = (input) => {
+  const [day, month, year] = input.split('/');
+  if (!day || !month || !year) {
+    return null;
+  }
+  const date = new Date(`${year}-${month}-${day}T00:00:00`);
+  return isNaN(date.getTime()) ? null : date;
+};
+
+const formatDateToInput = (date) => {
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0'); // zero-based months
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded, initialDateInput, onDateChange }) => {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [type, setType] = useState('Compra');
   const [quantity, setQuantity] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
   const [date, setDate] = useState(new Date());
+  const [dateInput, setDateInput] = useState(formatDateToInput(new Date()));
   const [loading, setLoading] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(true);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -31,25 +50,59 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
     }
     if (selectedDate) {
       setDate(selectedDate);
+      setDateInput(formatDateToInput(selectedDate));
+    }
+  };
+
+  const handleDateInputChange = (text) => {
+    const cleaned = text.replace(/\D/g, '');
+    const day = cleaned.slice(0, 2);
+    const month = cleaned.slice(2, 4);
+    const year = cleaned.slice(4, 8);
+    let formatted = '';
+    if (day) formatted += day;
+    if (month) formatted += `/${month}`;
+    if (year) formatted += `/${year}`;
+    setDateInput(formatted);
+
+    if (DATE_INPUT_FORMAT.test(formatted)) {
+      const parsed = parseDateInput(formatted);
+      if (parsed) {
+        setDate(parsed);
+      }
     }
   };
 
   const handleSubmit = async () => {
+    // Validate selected asset
     if (!selectedAsset) {
       Alert.alert('Erro', 'Selecione um ativo');
       return;
     }
 
-    if (!quantity || !unitPrice) {
+    // Validate mandatory fields
+    if (!quantity || !unitPrice || !dateInput) {
       Alert.alert('Erro', 'Preencha todos os campos');
       return;
     }
 
+    // Validate and parse quantity and price
     const qty = parseFloat(quantity);
     const price = parseFloat(unitPrice.replace(',', '.').replace(/\s/g, ''));
 
     if (qty <= 0 || price <= 0) {
       Alert.alert('Erro', 'Valores devem ser maiores que zero');
+      return;
+    }
+
+    // Validate and parse date input
+    if (!DATE_INPUT_FORMAT.test(dateInput)) {
+      Alert.alert('Erro', 'Data inválida. Use o formato DD/MM/AAAA');
+      return;
+    }
+    const parsedDate = parseDateInput(dateInput);
+    if (!parsedDate) {
+      Alert.alert('Erro', 'Data inválida');
       return;
     }
 
@@ -61,7 +114,7 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
         type,
         quantity: qty,
         unitPrice: price,
-        date: date.toISOString(),
+        date: parsedDate.toISOString(),
       };
 
       const success = await transactionService.addTransaction(transaction);
@@ -93,6 +146,7 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
     setQuantity('');
     setUnitPrice('');
     setDate(new Date());
+    setDateInput(formatDateToInput(new Date()));
     setShowAssetPicker(true);
     setShowDatePicker(false);
   };
@@ -133,12 +187,12 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
               <View style={styles.pickerContainer}>
                 <Text style={styles.pickerTitle}>Selecione um Ativo</Text>
                 <ScrollView style={styles.assetList}>
-                  {portfolio.map((asset) => (
-                    <TouchableOpacity
-                      key={asset.id}
-                      style={styles.assetItem}
-                      onPress={() => handleSelectAsset(asset)}
-                    >
+{portfolio.map((asset, index) => (
+  <TouchableOpacity
+    key={`asset-picker-${asset.id}-${index}`}
+    style={styles.assetItem}
+    onPress={() => handleSelectAsset(asset)}
+  >
                       <View style={styles.assetIconContainer}>
                         <Text style={styles.assetIcon}>
                           {asset.type === 'Ação' ? '📈' : '🏢'}
@@ -195,13 +249,22 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.datePickerContainer}>
+                <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Data da Transação</Text>
-                  <TouchableOpacity
-                    style={styles.datePickerButton}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <Text style={styles.datePickerButtonText}>{date.toLocaleDateString()}</Text>
+                  <View style={styles.dateInputContainer}>
+                  <TextInput
+                      style={styles.dateInput}
+                      placeholder="DD/MM/AAAA"
+                      placeholderTextColor={colors.textSecondary}
+                      value={dateInput}
+                      onChangeText={handleDateInputChange}
+                      keyboardType="numeric"
+                      maxLength={10}
+                    />
+                  </View>
+                  {/*
+                  <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+                    <Text style={styles.dateIcon}>📅</Text>
                   </TouchableOpacity>
                   {showDatePicker && (
                     <DateTimePicker
@@ -213,6 +276,7 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded }) =
                       maximumDate={new Date()}
                     />
                   )}
+                  */}
                 </View>
 
                 <View style={styles.form}>
@@ -504,6 +568,24 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+  dateInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+    paddingVertical: 12,
+  },
+  dateIcon: {
+    fontSize: 22,
   },
 });
 

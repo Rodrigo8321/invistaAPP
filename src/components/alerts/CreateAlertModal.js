@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,19 +13,24 @@ import { colors } from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
 import { ALERT_TYPES, createAlert } from '../../services/alertService';
 
-const CreateAlertModal = ({ visible, onClose, asset }) => {
+const CreateAlertModal = ({ visible, onClose, portfolio }) => {
+  const [asset, setAsset] = useState(null);
   const [selectedType, setSelectedType] = useState(ALERT_TYPES.PRICE_ABOVE);
   const [targetValue, setTargetValue] = useState('');
   const [preview, setPreview] = useState('');
-
+  const [showAssetPicker, setShowAssetPicker] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   // ========== RESET FORM ==========
   useEffect(() => {
-    if (visible && asset) {
+    if (visible) {
+      setAsset(null);
+      setShowAssetPicker(true);
       setSelectedType(ALERT_TYPES.PRICE_ABOVE);
       setTargetValue('');
       setPreview('');
+      setSearchQuery('');
     }
-  }, [visible, asset]);
+  }, [visible]);
 
   // ========== UPDATE PREVIEW ==========
   useEffect(() => {
@@ -43,16 +48,16 @@ const CreateAlertModal = ({ visible, onClose, asset }) => {
     let description = '';
     switch (selectedType) {
       case ALERT_TYPES.PRICE_ABOVE:
-        description = `${asset.ticker} reach ${formatCurrency(value)}`;
+        description = `${asset.ticker} atingir ${formatCurrency(value)}`;
         break;
       case ALERT_TYPES.PRICE_BELOW:
-        description = `${asset.ticker} fall to ${formatCurrency(value)}`;
+        description = `${asset.ticker} cair para ${formatCurrency(value)}`;
         break;
       case ALERT_TYPES.CHANGE_UP:
-        description = `${asset.ticker} rise +${value.toFixed(1)}%`;
+        description = `${asset.ticker} subir +${value.toFixed(1)}%`;
         break;
       case ALERT_TYPES.CHANGE_DOWN:
-        description = `${asset.ticker} fall -${value.toFixed(1)}%`;
+        description = `${asset.ticker} cair -${value.toFixed(1)}%`;
         break;
     }
 
@@ -62,29 +67,29 @@ const CreateAlertModal = ({ visible, onClose, asset }) => {
   // ========== CREATE ALERT ==========
   const handleCreateAlert = async () => {
     if (!asset || !targetValue.trim()) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Erro', 'Por favor, preencha todos os campos');
       return;
     }
 
     const value = parseFloat(targetValue);
     if (isNaN(value) || value <= 0) {
-      Alert.alert('Error', 'Invalid value');
+      Alert.alert('Erro', 'Valor inválido');
       return;
     }
 
     // Specific validations
     if (selectedType === ALERT_TYPES.PRICE_ABOVE && value <= asset.currentPrice) {
-      Alert.alert('Error', 'Target price must be higher than current price');
+      Alert.alert('Erro', 'O preço alvo deve ser maior que o preço atual');
       return;
     }
 
     if (selectedType === ALERT_TYPES.PRICE_BELOW && value >= asset.currentPrice) {
-      Alert.alert('Error', 'Target price must be lower than current price');
+      Alert.alert('Erro', 'O preço alvo deve ser menor que o preço atual');
       return;
     }
 
     if ((selectedType === ALERT_TYPES.CHANGE_UP || selectedType === ALERT_TYPES.CHANGE_DOWN) && value > 100) {
-      Alert.alert('Error', 'Change must be less than 100%');
+      Alert.alert('Erro', 'A variação deve ser menor que 100%');
       return;
     }
 
@@ -97,10 +102,10 @@ const CreateAlertModal = ({ visible, onClose, asset }) => {
         asset.currentPrice
       );
 
-      Alert.alert('Success', 'Alert created successfully!');
+      Alert.alert('Sucesso', 'Alerta criado com sucesso!');
       onClose();
     } catch (error) {
-      Alert.alert('Error', 'Failed to create alert');
+      Alert.alert('Erro', 'Falha ao criar alerta');
     }
   };
 
@@ -109,7 +114,24 @@ const CreateAlertModal = ({ visible, onClose, asset }) => {
     onClose();
   };
 
-  if (!asset) return null;
+  const handleSelectAsset = (selectedAsset) => {
+    setAsset(selectedAsset);
+    setShowAssetPicker(false);
+    setTargetValue(selectedAsset.currentPrice.toFixed(2));
+  };
+
+  const filteredPortfolio = useMemo(() => {
+    if (!searchQuery) {
+      return portfolio;
+    }
+    return Array.isArray(portfolio)
+      ? portfolio.filter(
+          (asset) =>
+            asset.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            asset.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : [];
+  }, [portfolio, searchQuery]);
 
   return (
     <Modal
@@ -122,122 +144,137 @@ const CreateAlertModal = ({ visible, onClose, asset }) => {
         <View style={styles.container}>
           {/* HEADER */}
           <View style={styles.header}>
-            <Text style={styles.title}>Create Alert</Text>
+            <Text style={styles.title}>Criar Alerta</Text>
             <TouchableOpacity onPress={onClose}>
               <Text style={styles.closeIcon}>✕</Text>
             </TouchableOpacity>
           </View>
 
-          {/* ASSET INFO */}
-          <View style={styles.assetInfo}>
-            <Text style={styles.assetTicker}>{asset.ticker}</Text>
-            <Text style={styles.assetName}>{asset.name}</Text>
-            <Text style={styles.assetPrice}>
-              Current price: {formatCurrency(asset.currentPrice)}
-            </Text>
-          </View>
-
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-            {/* ALERT TYPE */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Alert Type</Text>
-              <View style={styles.typeButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    selectedType === ALERT_TYPES.PRICE_ABOVE && styles.typeButtonActive
-                  ]}
-                  onPress={() => setSelectedType(ALERT_TYPES.PRICE_ABOVE)}
-                >
-                  <Text style={styles.typeIcon}>📈</Text>
-                  <Text style={[
-                    styles.typeText,
-                    selectedType === ALERT_TYPES.PRICE_ABOVE && styles.typeTextActive
-                  ]}>
-                    Price Above
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    selectedType === ALERT_TYPES.PRICE_BELOW && styles.typeButtonActive
-                  ]}
-                  onPress={() => setSelectedType(ALERT_TYPES.PRICE_BELOW)}
-                >
-                  <Text style={styles.typeIcon}>📉</Text>
-                  <Text style={[
-                    styles.typeText,
-                    selectedType === ALERT_TYPES.PRICE_BELOW && styles.typeTextActive
-                  ]}>
-                    Price Below
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    selectedType === ALERT_TYPES.CHANGE_UP && styles.typeButtonActive
-                  ]}
-                  onPress={() => setSelectedType(ALERT_TYPES.CHANGE_UP)}
-                >
-                  <Text style={styles.typeIcon}>🚀</Text>
-                  <Text style={[
-                    styles.typeText,
-                    selectedType === ALERT_TYPES.CHANGE_UP && styles.typeTextActive
-                  ]}>
-                    Change +
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    selectedType === ALERT_TYPES.CHANGE_DOWN && styles.typeButtonActive
-                  ]}
-                  onPress={() => setSelectedType(ALERT_TYPES.CHANGE_DOWN)}
-                >
-                  <Text style={styles.typeIcon}>⚠️</Text>
-                  <Text style={[
-                    styles.typeText,
-                    selectedType === ALERT_TYPES.CHANGE_DOWN && styles.typeTextActive
-                  ]}>
-                    Change -
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* TARGET VALUE */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>
-                {selectedType === ALERT_TYPES.PRICE_ABOVE || selectedType === ALERT_TYPES.PRICE_BELOW
-                  ? 'Target Price (R$)'
-                  : 'Change (%)'
-                }
-              </Text>
-              <TextInput
-                style={styles.input}
-                placeholder={
-                  selectedType === ALERT_TYPES.PRICE_ABOVE || selectedType === ALERT_TYPES.PRICE_BELOW
-                    ? 'Ex: 150.00'
-                    : 'Ex: 5.0'
-                }
-                placeholderTextColor={colors.textSecondary}
-                value={targetValue}
-                onChangeText={setTargetValue}
-                keyboardType="numeric"
-              />
-            </View>
-
-            {/* PREVIEW */}
-            {preview && (
+            {showAssetPicker ? (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Preview</Text>
-                <View style={styles.preview}>
-                  <Text style={styles.previewText}>{preview}</Text>
-                </View>
+                <Text style={styles.sectionTitle}>Selecione um Ativo</Text>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Buscar por ticker ou nome..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {filteredPortfolio.length > 0 ? (
+                  filteredPortfolio.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.assetItem}
+                      onPress={() => handleSelectAsset(item)}
+                    >
+                      <Text style={styles.assetItemTicker}>{item.ticker}</Text>
+                      <Text style={styles.assetItemName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyStateIcon}>🔍</Text>
+                    <Text style={styles.emptyStateText}>
+                      Nenhum ativo encontrado
+                    </Text>
+                    <Text style={styles.emptyStateSubtext}>
+                      Verifique o ticker ou adicione o ativo ao seu portfólio.
+                    </Text>
+                  </View>
+                )}
               </View>
+            ) : (
+              <>
+                {/* ASSET INFO */}
+                <TouchableOpacity onPress={() => setShowAssetPicker(true)}>
+                  <View style={styles.assetInfo}>
+                    <Text style={styles.assetTicker}>{asset.ticker}</Text>
+                    <Text style={styles.assetName}>{asset.name}</Text>
+                    <Text style={styles.assetPrice}>
+                      Preço atual: {formatCurrency(asset.currentPrice)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* ALERT TYPE */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Tipo de Alerta</Text>
+                  <View style={styles.typeButtons}>
+                    <TouchableOpacity
+                      style={[styles.typeButton, selectedType === ALERT_TYPES.PRICE_ABOVE && styles.typeButtonActive]}
+                      onPress={() => setSelectedType(ALERT_TYPES.PRICE_ABOVE)}
+                    >
+                      <Text style={styles.typeIcon}>📈</Text>
+                      <Text style={[styles.typeText, selectedType === ALERT_TYPES.PRICE_ABOVE && styles.typeTextActive]}>
+                        Preço Acima
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.typeButton, selectedType === ALERT_TYPES.PRICE_BELOW && styles.typeButtonActive]}
+                      onPress={() => setSelectedType(ALERT_TYPES.PRICE_BELOW)}
+                    >
+                      <Text style={styles.typeIcon}>📉</Text>
+                      <Text style={[styles.typeText, selectedType === ALERT_TYPES.PRICE_BELOW && styles.typeTextActive]}>
+                        Preço Abaixo
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.typeButton, selectedType === ALERT_TYPES.CHANGE_UP && styles.typeButtonActive]}
+                      onPress={() => setSelectedType(ALERT_TYPES.CHANGE_UP)}
+                    >
+                      <Text style={styles.typeIcon}>🚀</Text>
+                      <Text style={[styles.typeText, selectedType === ALERT_TYPES.CHANGE_UP && styles.typeTextActive]}>
+                        Variação +
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.typeButton, selectedType === ALERT_TYPES.CHANGE_DOWN && styles.typeButtonActive]}
+                      onPress={() => setSelectedType(ALERT_TYPES.CHANGE_DOWN)}
+                    >
+                      <Text style={styles.typeIcon}>⚠️</Text>
+                      <Text style={[styles.typeText, selectedType === ALERT_TYPES.CHANGE_DOWN && styles.typeTextActive]}>
+                        Variação -
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* TARGET VALUE */}
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>
+                    {selectedType === ALERT_TYPES.PRICE_ABOVE || selectedType === ALERT_TYPES.PRICE_BELOW
+                      ? 'Preço Alvo (R$)'
+                      : 'Variação (%)'}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={
+                      selectedType === ALERT_TYPES.PRICE_ABOVE || selectedType === ALERT_TYPES.PRICE_BELOW
+                        ? 'Ex: 150.00'
+                        : 'Ex: 5.0'
+                    }
+                    placeholderTextColor={colors.textSecondary}
+                    value={targetValue}
+                    onChangeText={setTargetValue}
+                    keyboardType="numeric"
+                  />
+                </View>
+                {/* PREVIEW */}
+                {preview && (
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Preview</Text>
+                    <View style={styles.preview}>
+                      <Text style={styles.previewText}>{preview}</Text>
+                    </View>
+                  </View>
+                )}
+              </>
             )}
 
             <View style={{ height: 20 }} />
@@ -246,10 +283,10 @@ const CreateAlertModal = ({ visible, onClose, asset }) => {
           {/* BUTTONS */}
           <View style={styles.buttons}>
             <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.createButton} onPress={handleCreateAlert}>
-              <Text style={styles.createButtonText}>Create Alert</Text>
+              <Text style={styles.createButtonText}>Criar Alerta</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -267,7 +304,7 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopRightRadius: 20,    
     maxHeight: '80%',
   },
   header: {
@@ -293,6 +330,23 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
     borderRadius: 12,
+  },
+  assetItem: {
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  assetItemTicker: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  assetItemName: {
+    color: colors.textSecondary,
+    fontSize: 12,
   },
   assetTicker: {
     fontSize: 18,
@@ -320,6 +374,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginBottom: 12,
+  },
+  searchInput: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: 16,
   },
   typeButtons: {
     flexDirection: 'row',
@@ -403,6 +467,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateIcon: {
+    fontSize: 32,
+    marginBottom: 12,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
 });
 

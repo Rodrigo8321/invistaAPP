@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   RefreshControl,
   Alert,
 } from 'react-native';
 import { colors } from '../../styles/colors';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   loadAlerts,
   deleteAlert,
@@ -19,15 +19,18 @@ import {
   getAlertIcon,
   checkAlerts,
 } from '../../services/alertService';
-import { mockAssets } from '../../data/mockAssets';
 import { fetchMultipleQuotes, fetchExchangeRate } from '../../services/marketService';
+import CreateAlertModal from '../../components/alerts/CreateAlertModal';
+import { usePortfolio } from '../../contexts/PortfolioContext';
 
 const AlertsScreen = ({ navigation }) => {
+  const { portfolio } = usePortfolio();
   const [alerts, setAlerts] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('active'); // active, triggered, all
   const [realPrices, setRealPrices] = useState({});
   const [exchangeRate, setExchangeRate] = useState(5.0);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   // ========== LOAD DATA ==========
   const loadData = useCallback(async () => {
@@ -42,11 +45,11 @@ const AlertsScreen = ({ navigation }) => {
       const rate = await fetchExchangeRate();
       setExchangeRate(rate);
 
-      const quotes = await fetchMultipleQuotes(mockAssets);
+      const quotes = await fetchMultipleQuotes(portfolio);
       const pricesMap = {};
 
       quotes.forEach((quote, index) => {
-        const asset = mockAssets[index];
+        const asset = portfolio[index];
         if (!quote.error) {
           pricesMap[asset.ticker] = {
             price: quote.price,
@@ -58,13 +61,13 @@ const AlertsScreen = ({ navigation }) => {
       setRealPrices(pricesMap);
 
       // Check if any alert was triggered
-      const triggered = await checkAlerts(mockAssets, pricesMap, rate);
+      const triggered = await checkAlerts(portfolio, pricesMap, rate);
 
-      if (triggered.length > 0) {
+      if (Array.isArray(triggered) && triggered.length > 0) {
         Alert.alert(
-          '🔔 Alerts Triggered!',
-          `${triggered.length} alert(s) were triggered!`,
-          [{ text: 'View', onPress: () => setFilter('triggered') }]
+          '🔔 Alertas Acionados!',
+          `${triggered.length} alerta(s) foram acionados!`,
+          [{ text: 'Ver', onPress: () => setFilter('triggered') }]
         );
 
         // Reload updated alerts
@@ -89,12 +92,12 @@ const AlertsScreen = ({ navigation }) => {
   // ========== DELETE ALERT ==========
   const handleDeleteAlert = (alertId) => {
     Alert.alert(
-      '🗑️ Delete Alert',
-      'Are you sure you want to delete this alert?',
+      '🗑️ Deletar Alerta',
+      'Você tem certeza que deseja deletar este alerta?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Deletar',
           style: 'destructive',
           onPress: async () => {
             await deleteAlert(alertId);
@@ -108,12 +111,12 @@ const AlertsScreen = ({ navigation }) => {
   // ========== CLEAR TRIGGERED ==========
   const handleClearTriggered = () => {
     Alert.alert(
-      '🗑️ Clear Alerts',
-      'Do you want to remove all triggered alerts?',
+      '🗑️ Limpar Alertas',
+      'Deseja remover todos os alertas acionados?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Clear',
+          text: 'Limpar',
           style: 'destructive',
           onPress: async () => {
             await clearTriggeredAlerts();
@@ -150,16 +153,16 @@ const AlertsScreen = ({ navigation }) => {
         {/* HEADER */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Alerts</Text>
+            <Text style={styles.title}>Alertas de Preço</Text>
             <Text style={styles.subtitle}>
-              {activeCount} assets • {triggeredCount} triggered
+              {activeCount} ativos • {triggeredCount} acionados
             </Text>
           </View>
           <TouchableOpacity
             style={styles.addButton}
-            onPress={() => navigation.navigate('Portfolio')}
+            onPress={() => setIsModalVisible(true)}
           >
-            <Text style={styles.addButtonText}>+ Create</Text>
+            <Text style={styles.addButtonText}>+ Criar</Text>
           </TouchableOpacity>
         </View>
 
@@ -174,26 +177,26 @@ const AlertsScreen = ({ navigation }) => {
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>✅</Text>
             <Text style={styles.statValue}>{activeCount}</Text>
-            <Text style={styles.statLabel}>Active</Text>
+            <Text style={styles.statLabel}>Ativos</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statIcon}>🔔</Text>
             <Text style={styles.statValue}>{triggeredCount}</Text>
-            <Text style={styles.statLabel}>Triggered</Text>
+            <Text style={styles.statLabel}>Acionados</Text>
           </View>
         </View>
 
         {/* FILTERS */}
         <View style={styles.filtersSection}>
-          <Text style={styles.filterLabel}>Filter:</Text>
+          <Text style={styles.filterLabel}>Filtrar:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity
               style={[styles.filterChip, filter === 'active' && styles.filterChipActive]}
               onPress={() => setFilter('active')}
             >
               <Text style={[styles.filterChipText, filter === 'active' && styles.filterChipTextActive]}>
-                Active
+                Ativos
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -201,7 +204,7 @@ const AlertsScreen = ({ navigation }) => {
               onPress={() => setFilter('triggered')}
             >
               <Text style={[styles.filterChipText, filter === 'triggered' && styles.filterChipTextActive]}>
-                Triggered
+                Acionados
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -209,7 +212,7 @@ const AlertsScreen = ({ navigation }) => {
               onPress={() => setFilter('all')}
             >
               <Text style={[styles.filterChipText, filter === 'all' && styles.filterChipTextActive]}>
-                All
+                Todos
               </Text>
             </TouchableOpacity>
           </ScrollView>
@@ -222,7 +225,7 @@ const AlertsScreen = ({ navigation }) => {
               style={styles.clearButton}
               onPress={handleClearTriggered}
             >
-              <Text style={styles.clearButtonText}>🗑️ Clear Triggered ({triggeredCount})</Text>
+              <Text style={styles.clearButtonText}>🗑️ Limpar Acionados ({triggeredCount})</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -230,7 +233,7 @@ const AlertsScreen = ({ navigation }) => {
         {/* ALERTS LIST */}
         <View style={styles.alertsSection}>
           <Text style={styles.alertsSectionTitle}>
-            {filteredAlerts.length} {filteredAlerts.length === 1 ? 'Alert' : 'Alerts'}
+            {filteredAlerts.length} {filteredAlerts.length === 1 ? 'Alerta' : 'Alertas'}
           </Text>
 
           {filteredAlerts.length === 0 ? (
@@ -239,10 +242,10 @@ const AlertsScreen = ({ navigation }) => {
                 {filter === 'triggered' ? '🔔' : '📊'}
               </Text>
               <Text style={styles.emptyStateText}>
-                {filter === 'triggered' ? 'No triggered alerts' : 'No alerts yet'}
+                {filter === 'triggered' ? 'Nenhum alerta acionado' : 'Nenhum alerta ainda'}
               </Text>
               <Text style={styles.emptyStateSubtext}>
-                {filter === 'triggered' ? 'Triggered alerts will appear here' : 'Create your first alert from the portfolio'}
+                {filter === 'triggered' ? 'Alertas acionados aparecerão aqui' : 'Crie seu primeiro alerta para um ativo'}
               </Text>
             </View>
           ) : (
@@ -256,11 +259,11 @@ const AlertsScreen = ({ navigation }) => {
                       {getAlertDescription(alert)}
                     </Text>
                     <Text style={styles.alertDate}>
-                      Created: {new Date(alert.createdAt).toLocaleDateString()}
+                      Criado em: {new Date(alert.createdAt).toLocaleDateString()}
                     </Text>
                     {alert.triggered && (
                       <Text style={styles.alertTriggered}>
-                        Triggered: {new Date(alert.triggeredAt).toLocaleDateString()}
+                        Acionado em: {new Date(alert.triggeredAt).toLocaleDateString()}
                       </Text>
                     )}
                   </View>
@@ -278,6 +281,15 @@ const AlertsScreen = ({ navigation }) => {
         </View>
 
         <View style={{ height: 30 }} />
+
+        <CreateAlertModal
+          visible={isModalVisible}
+          onClose={() => {
+            setIsModalVisible(false);
+            loadData(); // Recarrega os alertas após fechar o modal
+          }}
+          portfolio={portfolio} // Passa o portfólio para o modal
+        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -286,7 +298,7 @@ const AlertsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0F172A',
   },
   scrollView: {
     flex: 1,

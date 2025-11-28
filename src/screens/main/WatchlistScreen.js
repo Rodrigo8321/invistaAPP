@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TextInput,
   TouchableOpacity,
   Alert,
@@ -12,12 +11,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '../../styles/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency } from '../../utils/formatters';
-import { mockPortfolio } from '../../data/mockAssets';
 import { watchlistService } from '../../services/watchlistService';
 import AssetCard from '../../components/common/AssetCard';
+import { usePortfolio } from '../../contexts/PortfolioContext';
 
 const WatchlistScreen = ({ navigation }) => {
+  const { portfolio: userPortfolio } = usePortfolio();
   const [watchlist, setWatchlist] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,7 +50,7 @@ const WatchlistScreen = ({ navigation }) => {
 
   // Filtrar e buscar
   const filteredWatchlist = useMemo(() => {
-    let filtered = mockPortfolio.filter(asset => watchlist.includes(asset.ticker));
+    let filtered = userPortfolio.filter(asset => watchlist.includes(asset.ticker));
 
     // Filtrar por busca
     if (searchQuery) {
@@ -66,7 +67,7 @@ const WatchlistScreen = ({ navigation }) => {
     }
 
     return filtered;
-  }, [watchlist, searchQuery, filterType]);
+  }, [watchlist, searchQuery, filterType, userPortfolio]);
 
   // Remover da watchlist
   const handleRemoveFromWatchlist = async (ticker) => {
@@ -130,7 +131,7 @@ const WatchlistScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>⭐ Minha Watchlist</Text>
+        <Text style={styles.title}>⭐ Favoritos</Text>
         <Text style={styles.subtitle}>
           {watchlist.length} favorito{watchlist.length !== 1 ? 's' : ''}
         </Text>
@@ -225,7 +226,7 @@ const WatchlistScreen = ({ navigation }) => {
                   onPress={() => setFilterType('Ação')}
                 >
                   <Text style={[styles.filterText, filterType === 'Ação' && styles.filterTextActive]}>
-                    Ações ({mockPortfolio.filter(a => a.type === 'Ação' && watchlist.includes(a.ticker)).length})
+                    Ações ({userPortfolio.filter(a => a.type === 'Ação' && watchlist.includes(a.ticker)).length})
                   </Text>
                 </TouchableOpacity>
 
@@ -234,7 +235,41 @@ const WatchlistScreen = ({ navigation }) => {
                   onPress={() => setFilterType('FII')}
                 >
                   <Text style={[styles.filterText, filterType === 'FII' && styles.filterTextActive]}>
-                    FIIs ({mockPortfolio.filter(a => a.type === 'FII' && watchlist.includes(a.ticker)).length})
+                    FIIs ({userPortfolio.filter(a => a.type === 'FII' && watchlist.includes(a.ticker)).length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.filterChip, filterType === 'Cripto' && styles.filterChipActive]}
+                  onPress={() => setFilterType('Cripto')}
+                >
+                  <Text style={[styles.filterText, filterType === 'Cripto' && styles.filterTextActive]}>
+                    Cripto ({userPortfolio.filter(a => a.type === 'Cripto' && watchlist.includes(a.ticker)).length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.filterChip, filterType === 'Stocks' && styles.filterChipActive]}
+                  onPress={() => setFilterType('Stocks')}
+                >
+                  <Text style={[styles.filterText, filterType === 'Stocks' && styles.filterTextActive]}>
+                    Stocks ({userPortfolio.filter(a => a.type === 'Stocks' && watchlist.includes(a.ticker)).length})
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.filterChip, filterType === 'REIT' && styles.filterChipActive]}
+                  onPress={() => setFilterType('REIT')}
+                >
+                  <Text style={[styles.filterText, filterType === 'REIT' && styles.filterTextActive]}>REIT ({userPortfolio.filter(a => a.type === 'REIT' && watchlist.includes(a.ticker)).length})</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.filterChip, filterType === 'ETF' && styles.filterChipActive]}
+                  onPress={() => setFilterType('ETF')}
+                >
+                  <Text style={[styles.filterText, filterType === 'ETF' && styles.filterTextActive]}>
+                    ETF ({userPortfolio.filter(a => a.type === 'ETF' && watchlist.includes(a.ticker)).length})
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -281,7 +316,7 @@ const WatchlistScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0F172A',
   },
   centerContent: {
     flex: 1,

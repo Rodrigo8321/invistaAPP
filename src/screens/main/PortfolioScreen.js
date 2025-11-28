@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   TextInput,
   RefreshControl,
@@ -12,6 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { colors } from '../../styles/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { usePortfolio } from '../../contexts/PortfolioContext';
 import { fetchMultipleQuotes, fetchExchangeRate } from '../../services/marketService';
@@ -22,7 +22,6 @@ const { width } = Dimensions.get('window');
 const PortfolioScreen = ({ navigation }) => {
   const { portfolio, loading: portfolioLoading, error: portfolioError, addAsset } = usePortfolio();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState('all'); // all, BR, US, crypto
   const [selectedType, setSelectedType] = useState('all'); // all, Ação, FII, Stock, REIT, ETF, Crypto
   const [sortBy, setSortBy] = useState('profit'); // profit, name, value
   const [refreshing, setRefreshing] = useState(false);
@@ -112,14 +111,6 @@ const PortfolioScreen = ({ navigation }) => {
   const filteredAssets = useMemo(() => {
     let filtered = assetsWithRealPrices;
 
-    if (selectedCountry === 'BR') {
-      filtered = filtered.filter((a) => a.country === '🇧🇷');
-    } else if (selectedCountry === 'US') {
-      filtered = filtered.filter((a) => a.country === '🇺🇸');
-    } else if (selectedCountry === 'crypto') {
-      filtered = filtered.filter((a) => a.country === '🌐');
-    }
-
     if (selectedType !== 'all') {
       filtered = filtered.filter((a) => a.type === selectedType);
     }
@@ -140,7 +131,7 @@ const PortfolioScreen = ({ navigation }) => {
     }
 
     return filtered;
-  }, [assetsWithRealPrices, selectedCountry, selectedType, searchQuery, sortBy]);
+  }, [assetsWithRealPrices, selectedType, searchQuery, sortBy]);
 
   const stats = useMemo(() => {
     const filtered = filteredAssets;
@@ -190,17 +181,19 @@ const PortfolioScreen = ({ navigation }) => {
 
         <View style={styles.statsCard}>
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Investido</Text>
+            <Text style={styles.statLabel}>Total Investido</Text>
             <Text style={styles.statValue}>{formatCurrency(stats.invested)}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Atual</Text>
+            <Text style={styles.statLabel}>Saldo Atual</Text>
             <Text style={styles.statValue}>{formatCurrency(stats.current)}</Text>
           </View>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statLabel}>Lucro</Text>
+          <View style={[styles.statItem, { flex: 1.2 }]}>
+            <Text style={[styles.statLabel, { color: stats.profit >= 0 ? colors.success : colors.danger, flexWrap: 'wrap' }]}>
+              {stats.profit >= 0 ? 'Lucro' : 'Prejuízo'}
+            </Text>
             <Text style={[styles.statValue, { color: stats.profit >= 0 ? colors.success : colors.danger }]}>
               {formatCurrency(stats.profit)}
             </Text>
@@ -227,44 +220,6 @@ const PortfolioScreen = ({ navigation }) => {
         </View>
 
         <View style={styles.filtersSection}>
-          <Text style={styles.filterLabel}>Região:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity
-              style={[styles.filterChip, selectedCountry === 'all' && styles.filterChipActive]}
-              onPress={() => setSelectedCountry('all')}
-            >
-              <Text style={[styles.filterChipText, selectedCountry === 'all' && styles.filterChipTextActive]}>
-                Todos
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterChip, selectedCountry === 'BR' && styles.filterChipActive]}
-              onPress={() => setSelectedCountry('BR')}
-            >
-              <Text style={[styles.filterChipText, selectedCountry === 'BR' && styles.filterChipTextActive]}>
-                🇧🇷 Brasil
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterChip, selectedCountry === 'US' && styles.filterChipActive]}
-              onPress={() => setSelectedCountry('US')}
-            >
-              <Text style={[styles.filterChipText, selectedCountry === 'US' && styles.filterChipTextActive]}>
-                🇺🇸 USA
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterChip, selectedCountry === 'crypto' && styles.filterChipActive]}
-              onPress={() => setSelectedCountry('crypto')}
-            >
-              <Text style={[styles.filterChipText, selectedCountry === 'crypto' && styles.filterChipTextActive]}>
-                🌐 Cripto
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-
-        <View style={styles.filtersSection}>
           <Text style={styles.filterLabel}>Tipo:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <TouchableOpacity
@@ -279,25 +234,19 @@ const PortfolioScreen = ({ navigation }) => {
               style={[styles.filterChip, selectedType === 'Ação' && styles.filterChipActive]}
               onPress={() => setSelectedType('Ação')}
             >
-              <Text style={[styles.filterChipText, selectedType === 'Ação' && styles.filterChipTextActive]}>
-                Stocks
-              </Text>
+              <Text style={[styles.filterChipText, selectedType === 'Ação' && styles.filterChipTextActive]}>Ação</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.filterChip, selectedType === 'FII' && styles.filterChipActive]}
               onPress={() => setSelectedType('FII')}
             >
-              <Text style={[styles.filterChipText, selectedType === 'FII' && styles.filterChipTextActive]}>
-                REITs
-              </Text>
+              <Text style={[styles.filterChipText, selectedType === 'FII' && styles.filterChipTextActive]}>FII</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.filterChip, selectedType === 'Stock' && styles.filterChipActive]}
               onPress={() => setSelectedType('Stock')}
             >
-              <Text style={[styles.filterChipText, selectedType === 'Stock' && styles.filterChipTextActive]}>
-                Stocks
-              </Text>
+              <Text style={[styles.filterChipText, selectedType === 'Stock' && styles.filterChipTextActive]}>Stock</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.filterChip, selectedType === 'Crypto' && styles.filterChipActive]}
@@ -334,7 +283,7 @@ const PortfolioScreen = ({ navigation }) => {
               onPress={() => setSortBy('name')}
             >
               <Text style={[styles.sortButtonText, sortBy === 'name' && styles.sortButtonTextActive]}>
-                Nome
+                ticker
               </Text>
             </TouchableOpacity>
           </View>
@@ -406,7 +355,7 @@ const PortfolioScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: '#0F172A' },
   scrollView: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   loadingText: { marginTop: 16, fontSize: 16, color: colors.text },

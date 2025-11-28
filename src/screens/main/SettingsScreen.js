@@ -1,10 +1,18 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors } from '../../styles/colors';
+import {
+  SafeAreaView,
+  clearCache,
+  testQuotesApi,
+  testExchangeRateApi,
+} from '../../services/marketService';
 
 const SettingsScreen = () => {
   const { logout, user } = useAuth();
+  const [apiStatus, setApiStatus] = useState(null);
+  const [isTesting, setIsTesting] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -25,6 +33,44 @@ const SettingsScreen = () => {
         },
       ]
     );
+  };
+
+  const handleClearCache = () => {
+    Alert.alert(
+      'Limpar Cache de Cotações',
+      'Isso forçará a busca por novas cotações na próxima atualização. Deseja continuar?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Limpar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await clearCache();
+              Alert.alert('Sucesso', 'O cache de cotações foi limpo.');
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível limpar o cache.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleCheckApiStatus = async () => {
+    setIsTesting(true);
+    setApiStatus(null);
+    try {
+      const quotesResult = await testQuotesApi();
+      const exchangeResult = await testExchangeRateApi();
+      setApiStatus({ quotes: quotesResult, exchange: exchangeResult });
+    } catch (error) {
+      Alert.alert('Erro', 'Ocorreu um erro inesperado ao testar as APIs.');
+    }
+    setIsTesting(false);
   };
 
   return (
@@ -69,6 +115,56 @@ const SettingsScreen = () => {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Dados do Aplicativo</Text>
+
+          <TouchableOpacity style={styles.optionButton} onPress={handleClearCache}>
+            <Text style={styles.optionIcon}>🗑️</Text>
+            <Text style={styles.optionText}>Limpar Cache de Cotações</Text>
+            <Text style={styles.optionArrow}>→</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Status do Sistema */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Status do Sistema</Text>
+
+          <TouchableOpacity style={styles.optionButton} onPress={handleCheckApiStatus} disabled={isTesting}>
+            <Text style={styles.optionIcon}>📡</Text>
+            <Text style={styles.optionText}>{isTesting ? 'Verificando...' : 'Verificar Conexão das APIs'}</Text>
+            <Text style={styles.optionArrow}>→</Text>
+          </TouchableOpacity>
+
+          {apiStatus && (
+            <View style={styles.statusContainer}>
+              {/* Status API de Cotações */}
+              <View style={styles.statusRow}>
+                <Text style={styles.statusText}>API de Cotações</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusIndicator}>
+                    {apiStatus.quotes.success ? '🟢' : '🔴'}
+                  </Text>
+                  <Text style={styles.statusLabel}>
+                    {apiStatus.quotes.success ? 'Operacional' : 'Falha'}
+                  </Text>
+                </View>
+              </View>
+              {/* Status API de Câmbio */}
+              <View style={styles.statusRow}>
+                <Text style={styles.statusText}>API de Câmbio (USD-BRL)</Text>
+                <View style={styles.statusBadge}>
+                  <Text style={styles.statusIndicator}>
+                    {apiStatus.exchange.success ? '🟢' : '🔴'}
+                  </Text>
+                  <Text style={styles.statusLabel}>
+                    {apiStatus.exchange.success ? 'Operacional' : 'Falha'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Sobre</Text>
 
           <TouchableOpacity style={styles.optionButton}>
@@ -97,7 +193,7 @@ const SettingsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0F172A',
   },
   header: {
     padding: 20,
@@ -182,6 +278,37 @@ const styles = StyleSheet.create({
   optionArrow: {
     fontSize: 16,
     color: colors.textSecondary,
+  },
+  statusContainer: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  statusText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusIndicator: {
+    fontSize: 14,
+    marginRight: 6,
+  },
+  statusLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
   },
   logoutButton: {
     backgroundColor: colors.danger + '20',

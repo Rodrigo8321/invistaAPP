@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '../../styles/colors';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const assetTypes = ['Ação', 'FII', 'Stock', 'REIT', 'ETF', 'Crypto'];
 const countries = [
@@ -26,6 +27,8 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
   const [country, setCountry] = useState(countries[0].value);
   const [quantity, setQuantity] = useState('');
   const [averagePrice, setAveragePrice] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const resetForm = () => {
@@ -35,6 +38,7 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
     setCountry(countries[0].value);
     setQuantity('');
     setAveragePrice('');
+    setDate(new Date());
   };
 
   const handleAdd = async () => {
@@ -60,6 +64,7 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
         country,
         quantity: qty,
         averagePrice: avgPrice,
+        purchaseDate: date.toISOString(),
         currentPrice: avgPrice, // Initialize currentPrice same as averagePrice
       };
 
@@ -72,6 +77,12 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const onChangeDate = (event, selectedDate) => {
+    const currentDate = selectedDate || date;
+    setShowDatePicker(false);
+    setDate(currentDate);
   };
 
   return (
@@ -93,7 +104,7 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
           <ScrollView showsVerticalScrollIndicator={false}>
             {/* Ticker */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Ticker *</Text>
+              <Text style={styles.label}>Ticker </Text>
               <TextInput
                 style={styles.input}
                 placeholder="Ex: PETR4"
@@ -106,7 +117,7 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
 
             {/* Name */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nome *</Text>
+              <Text style={styles.label}>Nome do ativo </Text>
               <TextInput
                 style={styles.input}
                 placeholder="Ex: Petrobras"
@@ -118,7 +129,7 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
 
             {/* Type */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Tipo *</Text>
+              <Text style={styles.label}>Tipo </Text>
               <View style={styles.selectionRow}>
                 {assetTypes.map(t => (
                   <TouchableOpacity
@@ -134,11 +145,11 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
 
             {/* Country */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>País *</Text>
+              <Text style={styles.label}>País </Text>
               <View style={styles.selectionRow}>
-                {countries.map(c => (
+                {countries.map((c, index) => (
                   <TouchableOpacity
-                    key={c.value}
+                    key={`country-${index}`}
                     style={[styles.selectionOption, country === c.value && styles.selectionOptionActive]}
                     onPress={() => setCountry(c.value)}
                   >
@@ -152,7 +163,7 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
 
             {/* Quantity */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Quantidade *</Text>
+              <Text style={styles.label}>Quantidade </Text>
               <TextInput
                 style={styles.input}
                 placeholder="Ex: 100"
@@ -165,7 +176,7 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
 
             {/* Average Price */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Preço Médio (BRL) *</Text>
+              <Text style={styles.label}>Preço de Compra </Text>
               <TextInput
                 style={styles.input}
                 placeholder="Ex: 25.50"
@@ -174,6 +185,24 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
                 value={averagePrice}
                 onChangeText={setAveragePrice}
               />
+            </View>
+
+            {/* Purchase Date */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Data da Compra </Text>
+              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
+                <Text style={{ color: colors.text }}>{date.toLocaleDateString('pt-BR')}</Text>
+              </TouchableOpacity>
+              {showDatePicker && (
+                <DateTimePicker
+                  testID="dateTimePicker"
+                  value={date}
+                  mode="date"
+                  display="default"
+                  onChange={onChangeDate}
+                  maximumDate={new Date()}
+                />
+              )}
             </View>
 
             {/* Buttons */}
@@ -252,7 +281,7 @@ const styles = StyleSheet.create({
   selectionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10, // Adiciona espaçamento entre os itens
   },
   selectionOption: {
     paddingHorizontal: 14,
@@ -261,8 +290,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    marginRight: 12,
-    marginBottom: 8,
   },
   selectionOptionActive: {
     backgroundColor: colors.primary,

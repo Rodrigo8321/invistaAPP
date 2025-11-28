@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
@@ -12,6 +11,7 @@ import {
 } from 'react-native';
 import { colors } from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { transactionService } from '../../services/transactionService';
 import { mockPortfolio } from '../../data/mockAssets';
 import TransactionCard from '../../components/transactions/TransactionCard';
@@ -23,7 +23,7 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState('Compra');
   const [filterPeriod, setFilterPeriod] = useState('todos');
 
   useEffect(() => {
@@ -81,15 +81,9 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
     );
   };
 
-  // CORREÇÃO: Nova função para abrir modal com seleção de ativo
   const handleOpenModal = () => {
-    if (mockPortfolio.length === 0) {
-      Alert.alert('Aviso', 'Nenhum ativo disponível no portfolio');
-      return;
-    }
-    
-    // Seleciona o primeiro ativo por padrão
-    setSelectedAsset(mockPortfolio[0]);
+    // A lógica de seleção de ativo é gerenciada dentro do TransactionModal.
+    // Apenas precisamos torná-lo visível.
     setModalVisible(true);
   };
 
@@ -166,9 +160,11 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
                 </Text>
               </View>
 
-              <View style={[styles.summaryCard, {
-                backgroundColor: totals.totalProfit >= 0 ? colors.success : colors.danger
-              }]}>
+              <View
+                style={[
+                  styles.summaryCard,
+                  { backgroundColor: totals.totalProfit >= 0 ? colors.success : colors.danger },
+                ]}>
                 <Text style={styles.summaryLabel}>Lucro/Prejuízo</Text>
                 <Text style={styles.summaryValue}>
                   {formatCurrency(Math.abs(totals.totalProfit))}
@@ -189,22 +185,12 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
               </TouchableOpacity>
 
               <View style={styles.filterSection}>
-                <Text style={styles.filterLabel}>Tipo:</Text>
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   style={styles.filtersRow}
                   contentContainerStyle={styles.filtersContent}
                 >
-                  <TouchableOpacity
-                    style={[styles.filterChip, filterType === 'all' && styles.filterChipActive]}
-                    onPress={() => setFilterType('all')}
-                  >
-                    <Text style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>
-                      Todas
-                    </Text>
-                  </TouchableOpacity>
-
                   <TouchableOpacity
                     style={[styles.filterChip, filterType === 'Compra' && styles.filterChipActive]}
                     onPress={() => setFilterType('Compra')}
@@ -312,7 +298,7 @@ export default TransactionHistoryScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0F172A',
   },
   centerContent: {
     flex: 1,

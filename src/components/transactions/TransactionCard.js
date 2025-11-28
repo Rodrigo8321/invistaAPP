@@ -23,12 +23,10 @@ const TransactionCard = ({ transaction, onDelete }) => {
 
   // Cores baseado no tipo
   const backgroundColor = isCompra
-    ? colors.primary + '15'
-    : colors.success + '15';
-  const borderColor = isCompra
-    ? colors.primary
-    : colors.success;
-  const typeIcon = isCompra ? '✅' : '📊';
+    ? colors.success + '15' // Fundo verde claro para compra
+    : colors.danger + '15'; // Fundo vermelho claro para venda
+  const borderColor = isCompra ? colors.success : colors.danger;
+  const typeIcon = isCompra ? '➕' : '➖';
   const typeText = isCompra ? 'COMPRA' : 'VENDA';
 
   return (
