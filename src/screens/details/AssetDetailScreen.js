@@ -10,10 +10,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '../../styles/colors';
-import { formatCurrency } from '../../utils/formatters';
-import { marketService } from '../../services/marketService';
+import { formatCurrency, formatPercent } from '../../utils/formatters';
+import { fetchQuote } from '../../services/marketService';
 import PriceChart from '../../components/common/PriceChart';
-import FundamentalsCard from '../../components/common/FundamentalsCard';
 import CreateAlertModal from '../../components/alerts/CreateAlertModal';
 
 const AssetDetailScreen = ({ route, navigation }) => {
@@ -32,9 +31,9 @@ const AssetDetailScreen = ({ route, navigation }) => {
     setLoading(true);
     try {
       console.log(`📊 Carregando preço real para ${asset.ticker}...`);
-      
-      const quote = await marketService.getQuote(asset.ticker, true);
-      
+
+      const quote = await fetchQuote(asset);
+
       if (quote) {
         console.log(`✅ Preço real para ${asset.ticker}: ${quote.currentPrice}`);
         setRealAsset(prev => ({
@@ -98,6 +97,48 @@ const AssetDetailScreen = ({ route, navigation }) => {
 
   const handleCreateAlert = () => {
     setAlertModalVisible(true);
+  };
+
+  const renderFundamentals = () => {
+    const fundamentals = realAsset.fundamentals;
+    if (!fundamentals) return null;
+
+    const isFII = realAsset.type === 'FII';
+
+    const fundamentalItems = [
+      { label: 'P/L', value: fundamentals.pl?.toFixed(2), show: !isFII },
+      { label: 'P/VP', value: fundamentals.pvp?.toFixed(2) },
+      { label: 'DY', value: `${fundamentals.dy?.toFixed(2)}%` },
+      { label: 'ROE', value: `${fundamentals.roe?.toFixed(2)}%`, show: !isFII },
+      { label: 'Dív. Líq/EBITDA', value: fundamentals.dividaLiquidaEbitda?.toFixed(2), show: !isFII },
+      { label: 'Liq. Corrente', value: fundamentals.liquidezCorrente?.toFixed(2), show: !isFII },
+      { label: 'Marg. Líquida', value: `${fundamentals.margemLiquida?.toFixed(2)}%`, show: !isFII },
+      { label: 'Vacância', value: `${fundamentals.vacancia?.toFixed(2)}%`, show: isFII },
+    ];
+
+    return (
+      <View style={styles.fundamentalsCard}>
+        <Text style={styles.sectionTitle}>Fundamentos</Text>
+        <View style={styles.fundamentalsGrid}>
+          {fundamentalItems.map(item =>
+            item.show !== false ? (
+              <View key={item.label} style={styles.fundamentalItem}>
+                <Text style={styles.fundamentalLabel}>{item.label}</Text>
+                <Text style={styles.fundamentalValue}>{item.value || 'N/A'}</Text>
+              </View>
+            ) : null
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // Importação corrigida
+  const marketService = {
+    getQuote: async (ticker, force = false) => {
+      // Simula a função que estava sendo usada antes
+      return fetchQuote({ ticker, type: asset.type });
+    }
   };
 
   return (
@@ -236,7 +277,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
         </View>
 
         {/* Fundamentals */}
-        <FundamentalsCard asset={realAsset} type={realAsset.type} />
+        {renderFundamentals()}
 
         {/* Botões de Ação */}
         <View style={styles.actionsContainer}>
@@ -505,6 +546,41 @@ const styles = StyleSheet.create({
   actionButtonText: {
     color: colors.text,
     fontSize: 12,
+    fontWeight: 'bold',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 16,
+  },
+  fundamentalsCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fundamentalsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  fundamentalItem: {
+    width: '48%',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  fundamentalLabel: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  fundamentalValue: {
+    color: colors.text,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

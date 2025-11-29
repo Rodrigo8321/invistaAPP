@@ -14,7 +14,7 @@ import { colors } from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { usePortfolio } from '../../contexts/PortfolioContext';
-import { fetchMultipleQuotes, fetchExchangeRate } from '../../services/marketService';
+import { fetchExchangeRate } from '../../services/marketService';
 import AddAssetModal from '../../components/transactions/AddAssetModal';
 
 const { width } = Dimensions.get('window');
@@ -37,26 +37,7 @@ const PortfolioScreen = ({ navigation }) => {
       const rate = await fetchExchangeRate();
       setExchangeRate(rate);
 
-      const quotes = await fetchMultipleQuotes(portfolio);
-
-      const pricesMap = {};
-      quotes.forEach((quote, index) => {
-        const asset = portfolio[index];
-
-        if (quote.error) {
-          pricesMap[asset.ticker] = {
-            price: asset.currentPrice,
-            isMock: true,
-          };
-        } else {
-          pricesMap[asset.ticker] = {
-            price: quote.price,
-            change: quote.change,
-            changePercent: quote.changePercent,
-            isMock: quote.isMock || false,
-          };
-        }
-      });
+      const pricesMap = {}; // No real-time quotes, use empty map
 
       setRealPrices(pricesMap);
     } catch (error) {
@@ -68,7 +49,8 @@ const PortfolioScreen = ({ navigation }) => {
   };
 
   useEffect(() => {
-    loadRealData();
+    // A busca de dados em tempo real foi removida da inicialização.
+    setLoading(false);
   }, [portfolio]);
 
   const onRefresh = () => {

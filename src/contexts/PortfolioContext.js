@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 import storageService from '../services/storageService';
 
 export const PortfolioContext = createContext();
@@ -13,13 +13,10 @@ export const usePortfolio = () => {
 
 export const PortfolioProvider = ({ children }) => {
   const [portfolio, setPortfolio] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Carregar portfolio do storage na inicialização
-  useEffect(() => {
-    loadPortfolio();
-  }, []);
+
 
   const loadPortfolio = async () => {
     try {

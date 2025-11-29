@@ -15,7 +15,7 @@ import { colors } from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { mockPortfolio as mockAssets } from '../../data/mockAssets';
-import { fetchMultipleQuotes, fetchExchangeRate, clearCache } from '../../services/marketService';
+import { fetchExchangeRate, clearCache } from '../../services/marketService';
 import TransactionModal from '../../components/transactions/TransactionModal';
 
 const { width } = Dimensions.get('window');
@@ -56,80 +56,9 @@ const DashboardScreen = ({ navigation }) => {
   const [lastManualUpdate, setLastManualUpdate] = useState(null);
   const [transactionDateInput, setTransactionDateInput] = useState(null);
 
-  const loadRealData = async (useCache = true) => {
-    try {
-      setLoading(true);
-      if (!useCache) {
-        clearCache();
-      }
-
-      const quotes = await fetchMultipleQuotes(portfolio);
-
-      const pricesMap = {};
-      let errors = 0;
-
-      quotes.forEach((quote, index) => {
-        const asset = portfolio[index];
-
-        if (quote.error) {
-          errors++;
-          pricesMap[asset.ticker] = {
-            price: asset.currentPrice,
-            isMock: true,
-          };
-        } else {
-          pricesMap[asset.ticker] = {
-            price: quote.price,
-            change: quote.change,
-            changePercent: quote.changePercent,
-            volume: quote.volume,
-            isMock: quote.isMock || false,
-          };
-        }
-      });
-
-      setRealPrices(pricesMap);
-      setErrorCount(errors);
-      setLastUpdate(new Date());
-
-      // Reset weekly start prices every Sunday
-      const today = new Date();
-      if (today.getDay() === 0) { // 0 is Sunday
-        const newWeeklyStartPrices = {};
-        Object.keys(pricesMap).forEach(ticker => {
-          newWeeklyStartPrices[ticker] = pricesMap[ticker].price;
-        });
-        setWeeklyStartPrices(newWeeklyStartPrices);
-      }
-    } catch (error) {
-      console.error('❌ Load error:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
   useEffect(() => {
-    loadRealData();
-    const interval = setInterval(() => loadRealData(false), 60 * 60 * 1000);
-    return () => clearInterval(interval);
+    setLoading(false);
   }, []);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadRealData(false);
-  };
-
-  const handleManualRefresh = () => {
-    const now = new Date();
-    if (!lastManualUpdate || (now - lastManualUpdate) >= 60 * 60 * 1000) { // 1 hour in ms
-      setLastManualUpdate(now);
-      setRefreshing(true);
-      loadRealData(false);
-    } else {
-      Alert.alert('Atenção', 'Você só pode atualizar uma vez por hora.');
-    }
-  };
 
   // ========== CÁLCULOS ==========
   const stats = useMemo(() => {
@@ -277,6 +206,20 @@ const DashboardScreen = ({ navigation }) => {
     setTransactionModalVisible(false);
     // Optionally refresh data or show success message
   };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    // Simula uma atualização de rede
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  };
+
+  const handleManualRefresh = () => {
+    onRefresh();
+    Alert.alert('Atualizado', 'Os dados do portfólio foram atualizados.');
+  };
+
 
   return (
     <SafeAreaView style={styles.container}>

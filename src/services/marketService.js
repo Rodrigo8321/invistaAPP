@@ -299,33 +299,7 @@ export const fetchQuote = async (asset) => {
   }
 };
 
-// ========== BUSCA MÚLTIPLAS COTAÇÕES - OTIMIZADO ==========
-export const fetchMultipleQuotes = async (assets) => {
-  console.log(`📊 Fetching quotes for ${assets.length} assets...`);
-  
-  // CORREÇÃO: Adiciona delay entre requisições para evitar rate limit
-  const fetchWithDelay = async (asset, index) => {
-    // Delay de 200ms entre cada requisição
-    await new Promise(resolve => setTimeout(resolve, index * 200));
-    
-    try {
-      return await fetchQuote(asset);
-    } catch (error) {
-      return {
-        ticker: asset.ticker,
-        error: error.message,
-      };
-    }
-  };
 
-  const promises = assets.map((asset, index) => fetchWithDelay(asset, index));
-  const results = await Promise.all(promises);
-  
-  const successCount = results.filter(r => !r.error).length;
-  console.log(`✅ Success: ${successCount}/${assets.length} quotes fetched`);
-  
-  return results;
-};
 
 export const clearCache = async () => {
   try {

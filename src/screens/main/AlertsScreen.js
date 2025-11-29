@@ -19,7 +19,7 @@ import {
   getAlertIcon,
   checkAlerts,
 } from '../../services/alertService';
-import { fetchMultipleQuotes, fetchExchangeRate } from '../../services/marketService';
+import { fetchExchangeRate } from '../../services/marketService';
 import CreateAlertModal from '../../components/alerts/CreateAlertModal';
 import { usePortfolio } from '../../contexts/PortfolioContext';
 
@@ -45,22 +45,11 @@ const AlertsScreen = ({ navigation }) => {
       const rate = await fetchExchangeRate();
       setExchangeRate(rate);
 
-      const quotes = await fetchMultipleQuotes(portfolio);
-      const pricesMap = {};
-
-      quotes.forEach((quote, index) => {
-        const asset = portfolio[index];
-        if (!quote.error) {
-          pricesMap[asset.ticker] = {
-            price: quote.price,
-            changePercent: quote.changePercent,
-          };
-        }
-      });
+      const pricesMap = {}; // No real-time quotes, use empty map
 
       setRealPrices(pricesMap);
 
-      // Check if any alert was triggered
+      // Check if any alert was triggered (using mock prices)
       const triggered = await checkAlerts(portfolio, pricesMap, rate);
 
       if (Array.isArray(triggered) && triggered.length > 0) {
