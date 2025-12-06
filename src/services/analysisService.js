@@ -1,3 +1,8 @@
+const safeToFixed = (value, decimals = 2) => {
+  if (typeof value !== 'number' || isNaN(value)) return 'N/A';
+  return value.toFixed(decimals);
+};
+
 export const analyzeAsset = (asset) => {
   const analysis = {
     recommendation: '',
@@ -8,6 +13,10 @@ export const analyzeAsset = (asset) => {
   };
 
   if (asset.type === 'Ação') {
+    if (!asset.fundamentals) {
+      console.warn(`⚠️ Análise de fundamentos para ${asset.ticker} (Ação) pulada: 'fundamentals' é undefined.`);
+      return analysis; // Retorna análise parcial ou vazia
+    }
     const f = asset.fundamentals;
 
     // P/L Analysis
@@ -15,14 +24,14 @@ export const analyzeAsset = (asset) => {
       analysis.score += 2;
       analysis.strengths.push({
         label: 'P/L Atrativo',
-        value: f.pl.toFixed(2),
+        value: safeToFixed(f.pl, 2),
         reason: 'Ação pode estar subvalorizada',
       });
     } else if (f.pl > 15) {
       analysis.score -= 1;
       analysis.weaknesses.push({
         label: 'P/L Elevado',
-        value: f.pl.toFixed(2),
+        value: safeToFixed(f.pl, 2),
         reason: 'Possível sobrevalorização',
       });
     }
@@ -32,14 +41,14 @@ export const analyzeAsset = (asset) => {
       analysis.score += 2;
       analysis.strengths.push({
         label: 'P/VP < 1',
-        value: f.pvp.toFixed(2),
+        value: safeToFixed(f.pvp, 2),
         reason: 'Negociando abaixo do valor patrimonial',
       });
     } else if (f.pvp > 2) {
       analysis.score -= 1;
       analysis.weaknesses.push({
         label: 'P/VP Alto',
-        value: f.pvp.toFixed(2),
+        value: safeToFixed(f.pvp, 2),
         reason: 'Prêmio elevado sobre patrimônio',
       });
     }
@@ -49,14 +58,14 @@ export const analyzeAsset = (asset) => {
       analysis.score += 2;
       analysis.strengths.push({
         label: 'ROE Excelente',
-        value: f.roe.toFixed(1) + '%',
+        value: safeToFixed(f.roe, 1) + '%',
         reason: 'Alta rentabilidade sobre patrimônio',
       });
     } else if (f.roe < 10) {
       analysis.score -= 1;
       analysis.weaknesses.push({
         label: 'ROE Baixo',
-        value: f.roe.toFixed(1) + '%',
+        value: safeToFixed(f.roe, 1) + '%',
         reason: 'Rentabilidade abaixo da média',
       });
     }
@@ -66,7 +75,7 @@ export const analyzeAsset = (asset) => {
       analysis.score += 1;
       analysis.strengths.push({
         label: 'DY Atrativo',
-        value: f.dy.toFixed(1) + '%',
+        value: safeToFixed(f.dy, 1) + '%',
         reason: 'Bom pagamento de dividendos',
       });
     }
@@ -76,34 +85,37 @@ export const analyzeAsset = (asset) => {
       analysis.score += 1;
       analysis.strengths.push({
         label: 'Margem Saudável',
-        value: f.margLiq.toFixed(1) + '%',
+        value: safeToFixed(f.margLiq, 1) + '%',
         reason: 'Boa eficiência operacional',
       });
     } else if (f.margLiq < 10) {
       analysis.score -= 1;
       analysis.weaknesses.push({
         label: 'Margem Baixa',
-        value: f.margLiq.toFixed(1) + '%',
+        value: safeToFixed(f.margLiq, 1) + '%',
         reason: 'Eficiência operacional limitada',
       });
     }
 
   } else if (asset.type === 'FII') {
+    if (!asset.fundamentals) {
+      console.warn(`⚠️ Análise de fundamentos para ${asset.ticker} (FII) pulada: 'fundamentals' é undefined.`);
+      return analysis; // Retorna análise parcial ou vazia
+    }
     const f = asset.fundamentals;
 
     // Dividend Yield
     if (f.dy > 10) {
       analysis.score += 2;
       analysis.strengths.push({
-        label: 'DY Excepcional',
-        value: f.dy.toFixed(1) + '%',
-        reason: 'Rendimento muito atrativo',
+                  label: 'DY Excepcional',
+                  value: safeToFixed(f.dy, 1) + '%',        reason: 'Rendimento muito atrativo',
       });
     } else if (f.dy < 6) {
       analysis.score -= 1;
       analysis.weaknesses.push({
         label: 'DY Baixo',
-        value: f.dy.toFixed(1) + '%',
+        value: safeToFixed(f.dy, 1) + '%',
         reason: 'Rendimento abaixo da média para FII',
       });
     }
@@ -113,14 +125,14 @@ export const analyzeAsset = (asset) => {
       analysis.score += 2;
       analysis.strengths.push({
         label: 'Desconto ao Patrimônio',
-        value: f.pvp.toFixed(2),
+        value: safeToFixed(f.pvp, 2),
         reason: 'Negociando com desconto',
       });
     } else if (f.pvp > 1.1) {
       analysis.score -= 1;
       analysis.weaknesses.push({
         label: 'Prêmio ao Patrimônio',
-        value: f.pvp.toFixed(2),
+        value: safeToFixed(f.pvp, 2),
         reason: 'Negociando com prêmio',
       });
     }
@@ -130,25 +142,30 @@ export const analyzeAsset = (asset) => {
       analysis.score += 1;
       analysis.strengths.push({
         label: 'Vacância Baixa',
-        value: f.vacancia.toFixed(1) + '%',
+        value: safeToFixed(f.vacancia, 1) + '%',
         reason: 'Alta ocupação dos imóveis',
       });
     } else if (f.vacancia > 10) {
       analysis.score -= 1;
       analysis.weaknesses.push({
         label: 'Vacância Elevada',
-        value: f.vacancia.toFixed(1) + '%',
+        value: safeToFixed(f.vacancia, 1) + '%',
         reason: 'Risco de redução de rendimentos',
       });
     }
   }
 
   // Performance Analysis
-  const performance = ((asset.currentPrice - asset.avgPrice) / asset.avgPrice) * 100;
-  if (performance > 20) {
-    analysis.alerts.push(`Valorização de ${performance.toFixed(1)}% - considere realizar lucros`);
-  } else if (performance < -20) {
-    analysis.alerts.push(`Desvalorização de ${performance.toFixed(1)}% - reavalie a tese`);
+  let performance = null;
+  if (typeof asset.currentPrice === 'number' && typeof asset.avgPrice === 'number' && asset.avgPrice !== 0) {
+    performance = ((asset.currentPrice - asset.avgPrice) / asset.avgPrice) * 100;
+    if (performance > 20) {
+      analysis.alerts.push(`Valorização de ${safeToFixed(performance, 1)}% - considere realizar lucros`);
+    } else if (performance < -20) {
+      analysis.alerts.push(`Desvalorização de ${safeToFixed(performance, 1)}% - reavalie a tese`);
+    }
+  } else {
+    console.warn(`⚠️ Cálculo de performance para ${asset.ticker} pulado: preços inválidos (currentPrice: ${asset.currentPrice}, avgPrice: ${asset.avgPrice}).`);
   }
 
   // Final Recommendation

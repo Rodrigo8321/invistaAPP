@@ -35,10 +35,10 @@ const AssetDetailScreen = ({ route, navigation }) => {
       const quote = await fetchQuote(asset);
 
       if (quote) {
-        console.log(`✅ Preço real para ${asset.ticker}: ${quote.currentPrice}`);
+        console.log(`✅ Preço real para ${asset.ticker}: ${quote.price}`);
         setRealAsset(prev => ({
           ...prev,
-          currentPrice: quote.currentPrice,
+          currentPrice: quote.price,
           change: quote.change || 0,
           changePercent: quote.changePercent || 0,
         }));
@@ -105,15 +105,21 @@ const AssetDetailScreen = ({ route, navigation }) => {
 
     const isFII = realAsset.type === 'FII';
 
+    const getFormattedValue = (value, isPercent = false) => {
+      if (typeof value !== 'number' || isNaN(value)) return 'N/A';
+      const formatted = value.toFixed(2);
+      return isPercent ? `${formatted}%` : formatted;
+    };
+
     const fundamentalItems = [
-      { label: 'P/L', value: fundamentals.pl?.toFixed(2), show: !isFII },
-      { label: 'P/VP', value: fundamentals.pvp?.toFixed(2) },
-      { label: 'DY', value: `${fundamentals.dy?.toFixed(2)}%` },
-      { label: 'ROE', value: `${fundamentals.roe?.toFixed(2)}%`, show: !isFII },
-      { label: 'Dív. Líq/EBITDA', value: fundamentals.dividaLiquidaEbitda?.toFixed(2), show: !isFII },
-      { label: 'Liq. Corrente', value: fundamentals.liquidezCorrente?.toFixed(2), show: !isFII },
-      { label: 'Marg. Líquida', value: `${fundamentals.margemLiquida?.toFixed(2)}%`, show: !isFII },
-      { label: 'Vacância', value: `${fundamentals.vacancia?.toFixed(2)}%`, show: isFII },
+      { label: 'P/L', value: getFormattedValue(fundamentals.pl), show: !isFII },
+      { label: 'P/VP', value: getFormattedValue(fundamentals.pvp) },
+      { label: 'DY', value: getFormattedValue(fundamentals.dy, true) },
+      { label: 'ROE', value: getFormattedValue(fundamentals.roe, true), show: !isFII },
+      { label: 'Dív. Líq/EBITDA', value: getFormattedValue(fundamentals.dividaLiquidaEbitda), show: !isFII },
+      { label: 'Liq. Corrente', value: getFormattedValue(fundamentals.liquidezCorrente), show: !isFII },
+      { label: 'Marg. Líquida', value: getFormattedValue(fundamentals.margemLiquida, true), show: !isFII },
+      { label: 'Vacância', value: getFormattedValue(fundamentals.vacancia, true), show: isFII },
     ];
 
     return (
@@ -228,7 +234,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
               <Text style={[styles.summaryValue, {
                 color: assetData.isPositive ? colors.success : colors.danger
               }]}>
-                {assetData.isPositive ? '▲' : '▼'} {Math.abs(assetData.profitPercent).toFixed(2)}%
+                {assetData.isPositive ? '▲' : '▼'} {formatPercent(Math.abs(assetData.profitPercent))}
               </Text>
             </View>
           </View>

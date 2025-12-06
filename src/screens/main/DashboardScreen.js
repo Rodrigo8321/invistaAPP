@@ -14,22 +14,69 @@ import {
 import { colors } from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
-import { mockPortfolio as mockAssets } from '../../data/mockAssets';
-import { fetchExchangeRate, clearCache } from '../../services/marketService';
+import { usePortfolio } from '../../contexts/PortfolioContext'; // 1. Usar o contexto do portfólio
+import { fetchQuote, fetchExchangeRate } from '../../services/marketService'; // 2. Importar fetchQuote
 import TransactionModal from '../../components/transactions/TransactionModal';
 
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }) => {
-  const [portfolio] = useState(mockAssets);
+  // 3. Obter dados reais do contexto em vez de mock
+  const { portfolio, loading: portfolioLoading } = usePortfolio();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [realPrices, setRealPrices] = useState({});
   const [exchangeRate, setExchangeRate] = useState(5.0);
-  const [lastUpdate, setLastUpdate] = useState(null);
-  const [errorCount, setErrorCount] = useState(0);
-  // Initialize filter selection for three segments: 'acao', 'fii', 'crypto'
   const [selectedFilter, setSelectedFilter] = useState(['acao']); // array of filters
+
+  // 4. Função para buscar dados em tempo real
+  const loadRealData = async (showLoader = true) => {
+    if (portfolio.length === 0) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    if (showLoader) setLoading(true);
+
+    const rate = await fetchExchangeRate();
+    setExchangeRate(rate);
+
+    const pricesPromises = portfolio.map(asset => fetchQuote(asset));
+    const results = await Promise.allSettled(pricesPromises);
+
+    const pricesMap = results.reduce((acc, result, index) => {
+      if (result.status === 'fulfilled') {
+        acc[portfolio[index].ticker] = result.value;
+      }
+      return acc;
+    }, {});
+
+    setRealPrices(pricesMap);
+    setLoading(false);
+    setRefreshing(false);
+  };
+
+  // Assets com dados reais
+  const assetsWithRealPrices = useMemo(() => {
+    return portfolio.map(asset => {
+      const realPrice = realPrices[asset.ticker];
+      const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
+      const priceInBRL = asset.currency === 'USD' ? currentPrice * exchangeRate : currentPrice;
+      const invested = asset.averagePrice * asset.quantity;
+      const current = priceInBRL * asset.quantity;
+      const profit = current - invested;
+      const profitPercent = invested > 0 ? (profit / invested) * 100 : 0;
+
+      return {
+        ...asset,
+        currentPriceReal: priceInBRL,
+        profit,
+        profitPercent,
+        weeklyChange: realPrice?.changePercent || 0, // Usar a variação diária como fallback
+        isMock: realPrice?.isMock || false,
+      };
+    }); // Removido weeklyStartPrices
+  }, [portfolio, realPrices, exchangeRate]);
 
   // Cards que mostram os três melhores ativos de cada segmento (ação, fii, crypto)
   // Defensive fix: add default empty array in case assetsWithRealPrices is undefined
@@ -39,7 +86,7 @@ const DashboardScreen = ({ navigation }) => {
 
     segments.forEach(segment => {
       const filteredAssets = (assetsWithRealPrices || []).filter(a =>
-        a.type.toLowerCase().replace('ção', 'cao') === segment
+        a.type && a.type.toLowerCase().replace('ção', 'cao') === segment
       );
       // Ordena por variação semanal e pega os três primeiros
       const sorted = filteredAssets.sort((a, b) => b.weeklyChange - a.weeklyChange);
@@ -52,13 +99,12 @@ const DashboardScreen = ({ navigation }) => {
 
   const filterMap = { acao: 'Ação', fii: 'FII', stock: 'Stock', reit: 'REIT', etf: 'ETF', crypto: 'Crypto' };
   const [transactionModalVisible, setTransactionModalVisible] = useState(false);
-  const [weeklyStartPrices, setWeeklyStartPrices] = useState({});
-  const [lastManualUpdate, setLastManualUpdate] = useState(null);
   const [transactionDateInput, setTransactionDateInput] = useState(null);
 
+  // 5. Chamar a busca de dados quando o portfólio carregar
   useEffect(() => {
-    setLoading(false);
-  }, []);
+    if (!portfolioLoading) loadRealData();
+  }, [portfolioLoading]);
 
   // ========== CÁLCULOS ==========
   const stats = useMemo(() => {
@@ -141,32 +187,6 @@ const DashboardScreen = ({ navigation }) => {
       .sort((a, b) => b.percentage - a.percentage);
   }, [portfolio, realPrices, exchangeRate]);
 
-  // Assets com dados reais
-  const assetsWithRealPrices = useMemo(() => {
-    return portfolio.map(asset => {
-      const realPrice = realPrices[asset.ticker];
-      const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
-      const priceInBRL = asset.currency === 'USD' ? currentPrice * exchangeRate : currentPrice;
-      const invested = asset.averagePrice * asset.quantity;
-      const current = priceInBRL * asset.quantity;
-      const profit = current - invested;
-      const profitPercent = (profit / invested) * 100;
-
-      // Calculate weekly change
-      const weeklyStartPrice = weeklyStartPrices[asset.ticker];
-      const weeklyChange = weeklyStartPrice ? ((currentPrice - weeklyStartPrice) / weeklyStartPrice) * 100 : 0;
-
-      return {
-        ...asset,
-        currentPriceReal: priceInBRL,
-        profit,
-        profitPercent,
-        weeklyChange,
-        isMock: realPrice?.isMock || false,
-      };
-    });
-  }, [portfolio, realPrices, exchangeRate, weeklyStartPrices]);
-
   // Filtros
   const filteredAssetsLocal = useMemo(() => {
     let filtered = assetsWithRealPrices;
@@ -183,7 +203,7 @@ const DashboardScreen = ({ navigation }) => {
   const worstPerformers = [...filteredAssetsLocal].reverse().slice(0, 3);
 
   // ========== LOADING STATE ==========
-  if (loading) {
+  if (loading || portfolioLoading) { // 6. Considerar o loading do contexto também
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -209,10 +229,7 @@ const DashboardScreen = ({ navigation }) => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Simula uma atualização de rede
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
+    loadRealData(false); // 7. Chamar a função real no refresh
   };
 
   const handleManualRefresh = () => {
@@ -366,7 +383,7 @@ const DashboardScreen = ({ navigation }) => {
               <View style={styles.topCardsContainer}>
                 {assets.map((asset) => (
                   <TouchableOpacity
-                    key={asset.id}
+                    key={asset.ticker}
                     style={styles.topCard}
                     onPress={() => navigation.navigate('AssetDetail', { asset })}
                   >
@@ -376,7 +393,7 @@ const DashboardScreen = ({ navigation }) => {
                       {asset.profit >= 0 ? '+' : '-'}{formatCurrency(Math.abs(asset.profit))}
                     </Text>
                     <Text style={[styles.topCardProfitPercent, { color: asset.profit >= 0 ? colors.success : colors.danger }]}>
-                      {asset.profitPercent.toFixed(2)}%
+                      {formatPercent(asset.profitPercent)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -512,10 +529,10 @@ const DashboardScreen = ({ navigation }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate('Analysis')}
+              onPress={() => navigation.navigate('PortfolioManagement')}
             >
               <Text style={styles.quickActionIcon}>📊</Text>
-              <Text style={styles.quickActionText}>Análise</Text>
+              <Text style={styles.quickActionText}>Gestão de Portfólio</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickActionCard}

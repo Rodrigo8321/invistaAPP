@@ -14,7 +14,7 @@ import { colors } from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { usePortfolio } from '../../contexts/PortfolioContext';
-import { fetchExchangeRate } from '../../services/marketService';
+import { fetchExchangeRate, fetchQuote } from '../../services/marketService'; // 1. Importar fetchQuote
 import AddAssetModal from '../../components/transactions/AddAssetModal';
 
 const { width } = Dimensions.get('window');
@@ -25,33 +25,51 @@ const PortfolioScreen = ({ navigation }) => {
   const [selectedType, setSelectedType] = useState('all'); // all, Ação, FII, Stock, REIT, ETF, Crypto
   const [sortBy, setSortBy] = useState('profit'); // profit, name, value
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [realPrices, setRealPrices] = useState({});
   const [exchangeRate, setExchangeRate] = useState(5.0);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
 
+  // 2. Renomear loading para evitar conflito e controlar estado local
+  const [isFetchingPrices, setIsFetchingPrices] = useState(true);
+
   const loadRealData = async (showLoader = true) => {
     try {
-      if (showLoader) setLoading(true);
+      if (portfolio.length === 0) {
+        setIsFetchingPrices(false);
+        setRefreshing(false);
+        return;
+      }
+      if (showLoader) setIsFetchingPrices(true);
 
       const rate = await fetchExchangeRate();
       setExchangeRate(rate);
 
-      const pricesMap = {}; // No real-time quotes, use empty map
+      // 3. Buscar cotações para cada ativo no portfólio
+      const pricesPromises = portfolio.map(asset => fetchQuote(asset));
+      const results = await Promise.allSettled(pricesPromises);
+
+      const pricesMap = results.reduce((acc, result, index) => {
+        if (result.status === 'fulfilled') {
+          acc[portfolio[index].ticker] = result.value;
+        }
+        return acc;
+      }, {});
 
       setRealPrices(pricesMap);
     } catch (error) {
       console.error('❌ Load error:', error);
     } finally {
-      setLoading(false);
+      setIsFetchingPrices(false);
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    // A busca de dados em tempo real foi removida da inicialização.
-    setLoading(false);
-  }, [portfolio]);
+    // 4. Chamar a busca de dados quando o portfólio do contexto for carregado
+    if (!portfolioLoading) {
+      loadRealData();
+    }
+  }, [portfolioLoading]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -131,7 +149,7 @@ const PortfolioScreen = ({ navigation }) => {
     };
   }, [filteredAssets]);
 
-  if (loading) {
+  if (portfolioLoading) { // 5. Usar o loading principal do contexto
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -147,9 +165,7 @@ const PortfolioScreen = ({ navigation }) => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
       >
         <View style={styles.header}>
           <View>
@@ -160,6 +176,8 @@ const PortfolioScreen = ({ navigation }) => {
             <Text style={styles.addButtonText}>+ Adicionar</Text>
           </TouchableOpacity>
         </View>
+
+        {isFetchingPrices && <ActivityIndicator style={{ marginVertical: 10 }} color={colors.primary} />}
 
         <View style={styles.statsCard}>
           <View style={styles.statItem}>

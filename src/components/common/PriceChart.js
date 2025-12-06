@@ -15,22 +15,26 @@ const PriceChart = ({ asset, period = 30 }) => {
   const chartData = useMemo(() => {
     const data = [];
     const today = new Date();
-    
+
+    // Validar se os preços são números válidos
+    const avgPrice = typeof asset.avgPrice === 'number' && !isNaN(asset.avgPrice) ? asset.avgPrice : 0;
+    const currentPrice = typeof asset.currentPrice === 'number' && !isNaN(asset.currentPrice) ? asset.currentPrice : avgPrice;
+
     for (let i = period; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      
+
       // Simula variação de preço com padrão realista
       const variation = (Math.random() - 0.5) * 4;
-      const price = asset.avgPrice + (asset.currentPrice - asset.avgPrice) * (i / period) + variation;
-      
+      const price = avgPrice + (currentPrice - avgPrice) * (i / period) + variation;
+
       data.push({
         day: `${date.getDate()}/${date.getMonth() + 1}`,
         price: parseFloat(price.toFixed(2)),
         fullDate: date.toISOString().split('T')[0],
       });
     }
-    
+
     return data;
   }, [asset, period]);
 
@@ -39,9 +43,15 @@ const PriceChart = ({ asset, period = 30 }) => {
     const prices = chartData.map(d => d.price);
     const min = Math.min(...prices);
     const max = Math.max(...prices);
-    const variation = ((asset.currentPrice - chartData[0].price) / chartData[0].price) * 100;
-    
-    return { min, max, variation };
+    const firstPrice = chartData[0]?.price || 0;
+    const currentPrice = typeof asset.currentPrice === 'number' && !isNaN(asset.currentPrice) ? asset.currentPrice : firstPrice;
+    const variation = firstPrice > 0 ? ((currentPrice - firstPrice) / firstPrice) * 100 : 0;
+
+    return {
+      min: typeof min === 'number' && !isNaN(min) ? min : 0,
+      max: typeof max === 'number' && !isNaN(max) ? max : 0,
+      variation: typeof variation === 'number' && !isNaN(variation) ? variation : 0
+    };
   }, [chartData, asset.currentPrice]);
 
   // Definir cores baseado no desempenho
@@ -127,7 +137,9 @@ const PriceChart = ({ asset, period = 30 }) => {
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>Atual</Text>
-          <Text style={styles.statValue}>R$ {asset.currentPrice.toFixed(2)}</Text>
+          <Text style={styles.statValue}>
+            R$ {(typeof asset.currentPrice === 'number' ? asset.currentPrice : 0).toFixed(2)}
+          </Text>
         </View>
       </View>
     </View>

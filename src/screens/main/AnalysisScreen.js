@@ -1,42 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
-import { colors } from '../../styles/colors';
-import { mockPortfolio } from '../../data/mockAssets';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { exchangeRateService } from '../../services/exchangeRateService';
+import { colors } from '../../styles/colors';
+import { PortfolioContext } from '../../contexts/PortfolioContext';
 
+// Importando componentes de análise
 import PortfolioSummary from '../../components/analysis/PortfolioSummary';
-import DiversificationChart from '../../components/analysis/DiversificationChart';
 import PerformanceComparison from '../../components/analysis/PerformanceComparison';
-import RecommendationsCard from '../../components/analysis/RecommendationsCard';
+import DiversificationChart from '../../components/analysis/DiversificationChart';
 import SectorDistribution from '../../components/analysis/SectorDistribution';
+import RecommendationsCard from '../../components/analysis/RecommendationsCard';
 
 const AnalysisScreen = () => {
+  const { portfolio, loading, loadPortfolio } = useContext(PortfolioContext);
   const [refreshing, setRefreshing] = useState(false);
-  const [portfolio, setPortfolio] = useState(mockPortfolio);
-  const [exchangeRate, setExchangeRate] = useState(5.0);
 
   useEffect(() => {
-    loadExchangeRate();
-  }, []);
+    // Carregar dados do portfolio se necessário
+    if (!portfolio && !loading) {
+      loadPortfolio();
+    }
+  }, [portfolio, loading]);
 
-  const loadExchangeRate = async () => {
-    const rate = await exchangeRateService.getUSDtoBRL();
-    setExchangeRate(rate);
-  };
-
-  const onRefresh = async () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    await loadExchangeRate();
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await loadPortfolio();
     setRefreshing(false);
   };
+
+  if (loading && !portfolio) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.loadingText}>Carregando análise do portfolio...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -45,96 +53,35 @@ const AnalysisScreen = () => {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={onRefresh}
+            onRefresh={handleRefresh}
             tintColor={colors.primary}
-            colors={[colors.primary]}
           />
         }
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>🔍 Análise</Text>
-          <Text style={styles.subtitle}>Análise completa do seu portfolio internacional</Text>
-        </View>
-
-        {/* Info Card */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoIcon}>🌍</Text>
-          <View style={styles.infoContent}>
-            <Text style={styles.infoTitle}>Portfolio Global</Text>
-            <Text style={styles.infoText}>
-              Análise completa de {portfolio.length} ativos distribuídos entre Brasil, EUA e criptomoedas.
-              Valores em USD convertidos automaticamente para BRL (Taxa: R$ {exchangeRate.toFixed(2)}/USD).
-            </Text>
-          </View>
+          <Text style={styles.title}>📊 Análise do Portfolio</Text>
+          <Text style={styles.subtitle}>
+            Insights detalhados sobre seu investimento
+          </Text>
         </View>
 
         {/* Resumo Geral */}
         <PortfolioSummary portfolio={portfolio} />
 
-        {/* Diversificação por Tipo */}
-        <View style={styles.sectionContainer}>
-          <DiversificationChart portfolio={portfolio} />
-        </View>
+        {/* Comparação de Performance */}
+        <PerformanceComparison portfolio={portfolio} />
 
-        {/* Performance Comparison */}
-        <View style={styles.sectionContainer}>
-          <PerformanceComparison portfolio={portfolio} />
-        </View>
+        {/* Gráfico de Diversificação */}
+        <DiversificationChart portfolio={portfolio} />
 
         {/* Distribuição por Setor */}
-        <View style={styles.sectionContainer}>
-          <SectorDistribution portfolio={portfolio} />
-        </View>
+        <SectorDistribution portfolio={portfolio} />
 
         {/* Recomendações */}
-        <View style={styles.sectionContainer}>
-          <RecommendationsCard portfolio={portfolio} />
-        </View>
+        <RecommendationsCard portfolio={portfolio} />
 
-        {/* Estatísticas Internacionais */}
-        <View style={styles.statsCard}>
-          <Text style={styles.statsTitle}>📊 Estatísticas Globais</Text>
-          
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Ativos Brasileiros</Text>
-            <Text style={styles.statValue}>
-              {portfolio.filter(a => a.country === 'BR').length} ativos
-            </Text>
-          </View>
-
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Ativos Americanos</Text>
-            <Text style={styles.statValue}>
-              {portfolio.filter(a => a.country === 'US').length} ativos
-            </Text>
-          </View>
-
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Criptomoedas</Text>
-            <Text style={styles.statValue}>
-              {portfolio.filter(a => a.country === 'Global').length} ativos
-            </Text>
-          </View>
-
-          <View style={styles.statDivider} />
-
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Total de Tipos</Text>
-            <Text style={styles.statValue}>
-              {new Set(portfolio.map(a => a.type)).size} tipos
-            </Text>
-          </View>
-
-          <View style={styles.statRow}>
-            <Text style={styles.statLabel}>Total de Setores</Text>
-            <Text style={styles.statValue}>
-              {new Set(portfolio.map(a => a.sector)).size} setores
-            </Text>
-          </View>
-        </View>
-
-        {/* Footer Spacing */}
+        {/* Espaço final */}
         <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
@@ -145,6 +92,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F172A',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   header: {
     padding: 20,
@@ -160,72 +119,6 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: colors.textSecondary,
-  },
-  infoCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.primary + '20',
-    borderWidth: 1,
-    borderColor: colors.primary + '40',
-    borderRadius: 12,
-    padding: 16,
-    margin: 20,
-    marginBottom: 12,
-  },
-  infoIcon: {
-    fontSize: 28,
-    marginRight: 12,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  infoText: {
-    color: colors.text,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  sectionContainer: {
-    marginBottom: 8,
-  },
-  statsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statsTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  statDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: 8,
   },
 });
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,18 @@ import { colors } from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { transactionService } from '../../services/transactionService';
-import { mockPortfolio } from '../../data/mockAssets';
 import TransactionCard from '../../components/transactions/TransactionCard';
-import TransactionModal from '../../components/transactions/TransactionModal';
+import AddAssetModal from '../../components/transactions/AddAssetModal';
+import TransactionModal from '../../components/transactions/TransactionModal'; // 1. Importar o modal de transações
+import { usePortfolio } from '../../contexts/PortfolioContext';
 
 const TransactionHistoryScreen = ({ route, navigation }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
+  const [isAddAssetModalVisible, setIsAddAssetModalVisible] = useState(false);
+  const [isTransactionModalVisible, setIsTransactionModalVisible] = useState(false); // 2. Estado para o novo modal
+  const { portfolio, addAsset, reloadPortfolio } = usePortfolio(); // 3. Obter o portfólio
 
   const [filterType, setFilterType] = useState('Compra');
   const [filterPeriod, setFilterPeriod] = useState('todos');
@@ -32,7 +35,7 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
     // Verifica se deve abrir modal automaticamente
     if (route.params?.openModal) {
       setTimeout(() => {
-        handleOpenModal();
+        setIsAddAssetModalVisible(true);
       }, 500); // Pequeno delay para garantir que a tela carregou
     }
   }, [route.params]);
@@ -52,6 +55,7 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadTransactions();
+    await reloadPortfolio(); // <-- Recarrega o portfólio no "pull-to-refresh"
     setRefreshing(false);
   };
 
@@ -70,6 +74,7 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
             try {
               await transactionService.deleteTransaction(transactionId);
               await loadTransactions();
+              await reloadPortfolio(); // <-- Recarrega o portfólio após deletar
               Alert.alert('✅ Sucesso', 'Transação deletada com sucesso');
             } catch (error) {
               Alert.alert('Erro', 'Não foi possível deletar a transação');
@@ -81,10 +86,23 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
     );
   };
 
-  const handleOpenModal = () => {
-    // A lógica de seleção de ativo é gerenciada dentro do TransactionModal.
-    // Apenas precisamos torná-lo visível.
-    setModalVisible(true);
+  const handleAddAsset = async (newAsset) => {
+    try {
+      await addAsset(newAsset);
+      setIsAddAssetModalVisible(false);
+      await reloadPortfolio();
+    } catch (error) {
+      console.error('Erro ao adicionar ativo:', error);
+      Alert.alert('Erro', 'Não foi possível adicionar o novo ativo.');
+    }
+  };
+
+  // 4. Função para lidar com a adição de uma NOVA TRANSAÇÃO (compra/venda)
+  const handleTransactionAdded = async () => {
+    setIsTransactionModalVisible(false); // Fecha o modal de transação
+    await loadTransactions(); // Recarrega a lista de transações
+    await reloadPortfolio(); // Recalcula o portfólio
+    Alert.alert('✅ Sucesso', 'Nova transação registrada!');
   };
 
   const filtered = useMemo(() => {
@@ -117,6 +135,25 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
         <Text style={styles.subtitle}>
           Total: {transactions.length} transação{transactions.length !== 1 ? 's' : ''}
         </Text>
+      </View>
+
+      {/* Botões de Ação - Movidos para fora da condição para estarem sempre visíveis */}
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity
+          style={[styles.newButton, { backgroundColor: colors.success }]}
+          onPress={() => setIsAddAssetModalVisible(true)}
+        >
+          <Text style={styles.newButtonIcon}>➕</Text>
+          <Text style={styles.newButtonText}>Adicionar Novo Ativo</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.newButton, { backgroundColor: colors.primary, marginTop: 8 }]}
+          onPress={() => setIsTransactionModalVisible(true)}
+        >
+          <Text style={styles.newButtonIcon}>🔄</Text>
+          <Text style={styles.newButtonText}>Registrar Compra/Venda</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -176,14 +213,6 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
             </ScrollView>
 
             <View style={styles.content}>
-              <TouchableOpacity
-                style={styles.newButton}
-                onPress={handleOpenModal}
-              >
-                <Text style={styles.newButtonIcon}>➕</Text>
-                <Text style={styles.newButtonText}>Nova Transação</Text>
-              </TouchableOpacity>
-
               <View style={styles.filterSection}>
                 <ScrollView
                   horizontal
@@ -283,11 +312,19 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
         <View style={{ height: 32 }} />
       </ScrollView>
 
+      {/* Modal para ADICIONAR um novo ativo */}
+      <AddAssetModal
+        visible={isAddAssetModalVisible}
+        onClose={() => setIsAddAssetModalVisible(false)}
+        onAddAsset={handleAddAsset}
+      />
+
+      {/* 6. Modal para REGISTRAR uma transação (compra/venda) */}
       <TransactionModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        portfolio={mockPortfolio}
-        onTransactionAdded={loadTransactions}
+        visible={isTransactionModalVisible}
+        onClose={() => setIsTransactionModalVisible(false)}
+        onTransactionAdded={handleTransactionAdded}
+        portfolio={portfolio}
       />
     </SafeAreaView>
   );
@@ -374,6 +411,10 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     textAlign: 'center',
+  },
+  actionButtonsContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
   content: {
     flex: 1,

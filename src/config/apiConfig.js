@@ -1,7 +1,13 @@
+/**
+ * Carrega as variáveis de ambiente. Em um ambiente React Native, isso geralmente é feito
+ * com um pacote como 'react-native-dotenv'. Para a web, pode ser 'dotenv'.
+ * As chaves agora devem ser definidas em um arquivo .env na raiz do projeto.
+ */
 export const API_CONFIG = {
   // ========== ALPHA VANTAGE (Stocks US) ==========
   alphaVantage: {
-    apiKey: 'XMZOTCLPFMINQCOH',
+    // Ex: ALPHA_VANTAGE_API_KEY=JJ8R7MU3IJIGPLOY
+    apiKey: process.env.ALPHA_VANTAGE_API_KEY,
     baseUrl: 'https://www.alphavantage.co/query',
     timeout: 10000, // 10 segundos
     rateLimit: {
@@ -12,7 +18,8 @@ export const API_CONFIG = {
 
   // ========== COINGECKO (Crypto) ==========
   coinGecko: {
-    apiKey: 'CG-w96eV67ifKpSaC3PEW7rsG58',
+    // Ex: COINGECKO_API_KEY=sua_chave_aqui
+    apiKey: process.env.COINGECKO_API_KEY, // Opcional, mas recomendado
     baseUrl: 'https://api.coingecko.com/api/v3',
     timeout: 8000, // 8 segundos
     rateLimit: {
@@ -23,13 +30,28 @@ export const API_CONFIG = {
 
   // ========== BRAPI (Ativos BR) ==========
   brapi: {
-    apiKey: 'hqXr2P4LbitgvSVTnP4AK7', // Token opcional
+    // Ex: BRAPI_BEARER_TOKEN=hqXr2P4LbitgvSVTnP4AK7
+    bearerToken: process.env.BRAPI_BEARER_TOKEN,
     baseUrl: 'https://brapi.dev/api',
     timeout: 10000, // 10 segundos
     rateLimit: {
       maxRequests: 100,
       perMinute: true,
     },
+  },
+
+  // ========== FINANCIAL MODELING PREP (FMP - Stocks US Fallback) ==========
+  financialModelingPrep: {
+    // Ex: FMP_API_KEY=sua_chave_aqui
+    apiKey: process.env.FMP_API_KEY,
+    baseUrl: 'https://financialmodelingprep.com/api/v3',
+    timeout: 10000, // 10 segundos
+    rateLimit: {
+      maxRequests: 250, // Exemplo, verifique a documentação da FMP
+      perDay: true,
+    },
+    // Nota: A FMP pode ter diferentes endpoints para dados que a Alpha Vantage oferece.
+    // Adaptações podem ser necessárias na camada de serviço.
   },
 
   // ========== EXCHANGERATE (Conversão USD/BRL) ==========
@@ -41,7 +63,7 @@ export const API_CONFIG = {
 
   // ========== CONFIGURAÇÕES GLOBAIS ==========
   cache: {
-    ttl: 5 * 60 * 1000, // 5 minutos
+    ttl: 60 * 60 * 1000, // 1 hora
     enabled: true,
   },
 
@@ -56,14 +78,21 @@ export const API_CONFIG = {
 };
 
 /**
- * Helper: Verifica se as APIs estão configuradas
+ * Helpers: Verificam se as chaves de API para serviços específicos foram definidas.
+ * Isso evita que o app tente usar chaves de exemplo ou vazias.
  */
-export const isAPIConfigured = () => {
-  return !!(
-    API_CONFIG.alphaVantage.apiKey &&
-    API_CONFIG.coinGecko.apiKey &&
-    API_CONFIG.brapi.apiKey
-  );
+export const isBrapiConfigured = () => !!API_CONFIG.brapi.bearerToken;
+
+export const isAlphaVantageConfigured = () => !!API_CONFIG.alphaVantage.apiKey;
+
+export const isCoinGeckoConfigured = () => !!API_CONFIG.coinGecko.apiKey;
+
+/**
+ * Helper: Verifica se TODAS as chaves de API essenciais foram definidas.
+ * Útil para um check geral na inicialização do app.
+ */
+export const areAllAPIsConfigured = () => {
+  return isBrapiConfigured() && isAlphaVantageConfigured() && isCoinGeckoConfigured();
 };
 
 /**

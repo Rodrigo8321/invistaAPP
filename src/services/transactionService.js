@@ -138,6 +138,60 @@ export const transactionService = {
   },
 
   /**
+   * Calcula o estado do portfólio a partir de uma lista de transações.
+   * @param {Array} transactions - Array de todas as transações.
+   * @returns {Array} Um array de ativos que representa o portfólio.
+   */
+  calculatePortfolioFromTransactions(transactions) {
+    const portfolioMap = new Map();
+
+    // Ordena as transações por data para garantir a ordem correta dos cálculos
+    const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    sortedTransactions.forEach(tx => {
+      if (!portfolioMap.has(tx.ticker)) {
+        // Se o ativo não existe no mapa, inicializa com dados da primeira transação
+        // Isso é importante para carregar metadados como nome, tipo, setor, etc.
+        portfolioMap.set(tx.ticker, {
+          id: tx.ticker, // Usar ticker como ID único para o ativo no portfólio
+          ticker: tx.ticker,
+          name: tx.name,
+          type: tx.typeAsset || 'Ação', // Garante que o tipo nunca seja indefinido
+          sector: tx.sector,
+          country: tx.country,
+          currency: tx.currency,
+          quantity: 0,
+          averagePrice: 0,
+          totalInvested: 0,
+          currentPrice: tx.unitPrice, // Preço inicial, será atualizado por APIs externas
+        });
+      }
+
+      const asset = portfolioMap.get(tx.ticker);
+
+      if (tx.type === 'Compra') {
+        const newTotalInvested = asset.totalInvested + (tx.quantity * tx.unitPrice);
+        const newQuantity = asset.quantity + tx.quantity;
+        asset.quantity = newQuantity;
+        asset.totalInvested = newTotalInvested;
+        asset.averagePrice = newQuantity > 0 ? newTotalInvested / newQuantity : 0;
+      } else if (tx.type === 'Venda') {
+        const costOfSoldShares = tx.quantity * asset.averagePrice;
+        asset.totalInvested -= costOfSoldShares;
+        asset.quantity -= tx.quantity;
+
+        if (asset.quantity <= 0) {
+          asset.averagePrice = 0;
+          asset.totalInvested = 0;
+        }
+      }
+    });
+
+    // Retorna apenas os ativos que o usuário ainda possui (quantidade > 0)
+    return Array.from(portfolioMap.values()).filter(asset => asset.quantity > 0);
+  },
+
+  /**
    * Retorna estatísticas por ativo
    * @param {Array} transactions - Array de transações
    * @returns {Object} Objeto com stats por ativo

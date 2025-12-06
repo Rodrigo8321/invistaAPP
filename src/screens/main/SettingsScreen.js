@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { colors } from '../../styles/colors';
 import {
-  SafeAreaView,
   clearCache,
   testQuotesApi,
   testExchangeRateApi,
 } from '../../services/marketService';
+import { transactionService } from '../../services/transactionService';
 
 const SettingsScreen = () => {
   const { logout, user } = useAuth();
@@ -53,6 +54,32 @@ const SettingsScreen = () => {
               Alert.alert('Sucesso', 'O cache de cotações foi limpo.');
             } catch (error) {
               Alert.alert('Erro', 'Não foi possível limpar o cache.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleClearTransactions = () => {
+    Alert.alert(
+      '⚠️ Limpar Todas as Transações',
+      'Esta ação é irreversível e irá apagar todo o seu histórico de transações e portfólio. Deseja continuar?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Limpar Tudo',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await transactionService.clearTransactions();
+              Alert.alert('Sucesso', 'Todas as suas transações foram apagadas. O aplicativo será recarregado.');
+              // Idealmente, forçar um recarregamento do app ou do contexto aqui.
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível limpar as transações.');
             }
           },
         },
@@ -120,6 +147,12 @@ const SettingsScreen = () => {
           <TouchableOpacity style={styles.optionButton} onPress={handleClearCache}>
             <Text style={styles.optionIcon}>🗑️</Text>
             <Text style={styles.optionText}>Limpar Cache de Cotações</Text>
+            <Text style={styles.optionArrow}>→</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.optionButton, { borderColor: colors.danger }]} onPress={handleClearTransactions}>
+            <Text style={styles.optionIcon}>🔥</Text>
+            <Text style={[styles.optionText, { color: colors.danger }]}>Limpar Todas as Transações</Text>
             <Text style={styles.optionArrow}>→</Text>
           </TouchableOpacity>
         </View>

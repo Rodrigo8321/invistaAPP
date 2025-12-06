@@ -50,16 +50,16 @@ const CRYPTO_ID_MAP = {
 // ========== BRAPI (ATIVOS BRASILEIROS) - CORRIGIDO ==========
 const fetchBrapiQuote = async (ticker) => {
   try {
-    // CORREÇÃO: Endpoint sem token, API pública
-    const url = `https://brapi.dev/api/quote/${ticker}`;
+    const url = `${API_CONFIG.brapi.baseUrl}/quote/${ticker}`;
 
     console.log(`🇧🇷 Fetching Brapi: ${ticker}...`);
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_CONFIG.brapi.bearerToken}`,
       },
     });
 
@@ -70,19 +70,21 @@ const fetchBrapiQuote = async (ticker) => {
     }
 
     if (!response.ok) {
+      const errorBody = await response.text();
+      console.log('DEBUG: Corpo da resposta de erro da Brapi:', errorBody);
       throw new Error(`Brapi HTTP ${response.status}`);
     }
 
     const json = await response.json();
-    
+
     if (!json.results || json.results.length === 0) {
       throw new Error('No data from Brapi');
     }
 
     const quote = json.results[0];
-    
+
     logAPICall('Brapi', ticker, 'SUCCESS');
-    
+
     return {
       price: quote.regularMarketPrice || quote.regularMarketPreviousClose,
       change: quote.regularMarketChange || 0,
@@ -96,7 +98,8 @@ const fetchBrapiQuote = async (ticker) => {
       updatedAt: new Date().toISOString(),
     };
   } catch (error) {
-    logAPICall('Brapi', ticker, `ERROR: ${error.message}`);
+    const isNotFound = error.message.includes('404');
+    logAPICall('Brapi', ticker, isNotFound ? `WARN: Ticker not found` : `ERROR: ${error.message}`);
     throw error;
   }
 };
@@ -107,7 +110,7 @@ const fetchAlphaVantageQuote = async (ticker) => {
     const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${API_CONFIG.alphaVantage.apiKey}`;
 
     console.log(`🇺🇸 Fetching Alpha Vantage: ${ticker}...`);
-    
+
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -115,7 +118,7 @@ const fetchAlphaVantageQuote = async (ticker) => {
     }
 
     const json = await response.json();
-    
+
     // CORREÇÃO: Melhor verificação de erros
     if (json['Error Message']) {
       throw new Error('Invalid ticker');
@@ -130,14 +133,14 @@ const fetchAlphaVantageQuote = async (ticker) => {
     }
 
     const quote = json['Global Quote'];
-    
+
     // CORREÇÃO: Verifica se quote tem dados
     if (!quote || !quote['05. price']) {
       throw new Error('Empty response from API');
     }
 
     logAPICall('Alpha Vantage', ticker, 'SUCCESS');
-    
+
     return {
       price: parseFloat(quote['05. price']),
       change: parseFloat(quote['09. change'] || 0),
@@ -160,11 +163,11 @@ const fetchCoinGeckoQuote = async (ticker) => {
   try {
     // CORREÇÃO: Usa mapeamento correto de IDs
     const coinId = CRYPTO_ID_MAP[ticker.toUpperCase()] || ticker.toLowerCase();
-    
+
     const url = `https://api.coingecko.com/api/v3/coins/${coinId}?localization=false&tickers=false&market_data=true&community_data=false&developer_data=false&sparkline=false`;
 
     console.log(`💰 Fetching CoinGecko: ${coinId}...`);
-    
+
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
@@ -176,15 +179,15 @@ const fetchCoinGeckoQuote = async (ticker) => {
     }
 
     const json = await response.json();
-    
+
     if (!json.market_data) {
       throw new Error('No market data from CoinGecko');
     }
 
     const market = json.market_data;
-    
+
     logAPICall('CoinGecko', coinId, 'SUCCESS');
-    
+
     return {
       price: market.current_price.usd,
       change: market.price_change_24h || 0,
@@ -216,7 +219,7 @@ export const fetchExchangeRate = async () => {
     const url = 'https://economia.awesomeapi.com.br/json/last/USD-BRL';
 
     console.log('💱 Fetching exchange rate USD/BRL...');
-    
+
     const response = await fetch(url);
 
     if (!response.ok) {
@@ -231,7 +234,7 @@ export const fetchExchangeRate = async () => {
 
     // Salva no cache
     await saveToCache(CACHE_KEYS.EXCHANGE_RATE, rate);
-    
+
     return rate;
   } catch (error) {
     logAPICall('ExchangeRate', 'USD/BRL', `ERROR: ${error.message}`);
@@ -240,11 +243,13 @@ export const fetchExchangeRate = async () => {
       const expiredCache = await AsyncStorage.getItem(CACHE_KEYS.EXCHANGE_RATE);
       if (expiredCache) {
         const { data } = JSON.parse(expiredCache);
-        console.warn(`⚠️ Using expired cache exchange rate: ${data.toFixed(2)}`);
-        return data;
+        if (typeof data === 'number' && !isNaN(data)) {
+          console.warn(`⚠️ Using expired cache exchange rate: ${data.toFixed(2)}`);
+          return data;
+        }
       }
     } catch {}
-    
+
     // Fallback final
     console.warn('⚠️ Using fallback exchange rate: 5.00');
     return 5.00;
@@ -256,11 +261,11 @@ export const fetchQuote = async (asset) => {
   const cacheKey = `${CACHE_KEYS.QUOTE}${asset.ticker}`;
 
   try {
-    // Verifica cache
-    if (API_CONFIG.cache.enabled) {
-      const cached = await getFromCache(cacheKey);
-      if (cached) return cached;
-    }
+    // // Verifica cache - DESATIVADO PARA GARANTIR DADOS EM TEMPO REAL
+    // if (API_CONFIG.cache.enabled) {
+    //   const cached = await getFromCache(cacheKey);
+    //   if (cached) return cached;
+    // }
 
     let quote;
 
@@ -275,8 +280,8 @@ export const fetchQuote = async (asset) => {
       throw new Error(`Unknown asset type: ${asset.type}`);
     }
 
-    // Salva no cache
-    await saveToCache(cacheKey, quote);
+    // // Salva no cache - DESATIVADO
+    // await saveToCache(cacheKey, quote);
 
     return quote;
   } catch (error) {
@@ -286,10 +291,17 @@ export const fetchQuote = async (asset) => {
     if (API_CONFIG.fallback.useMockOnError) {
       console.warn(`⚠️ Using mock data for ${asset.ticker}`);
       return {
-        price: asset.currentPrice,
-        change: asset.currentPrice - asset.averagePrice,
-        changePercent: ((asset.currentPrice - asset.averagePrice) / asset.averagePrice) * 100,
+        price: asset.currentPrice || 0,
+        change: (asset.currentPrice || 0) - (asset.averagePrice || 0),
+        changePercent: asset.averagePrice > 0
+          ? (((asset.currentPrice || 0) - asset.averagePrice) / asset.averagePrice) * 100
+          : 0,
         volume: 1000000,
+        marketCap: 0,
+        high: asset.currentPrice || 0,
+        low: asset.currentPrice || 0,
+        open: asset.currentPrice || 0,
+        previousClose: asset.averagePrice || 0,
         updatedAt: new Date().toISOString(),
         isMock: true,
       };
@@ -299,18 +311,72 @@ export const fetchQuote = async (asset) => {
   }
 };
 
-
-
 export const clearCache = async () => {
   try {
     const keys = await AsyncStorage.getAllKeys();
-    const cacheKeys = keys.filter(k => 
-      k.startsWith(CACHE_KEYS.QUOTE) || 
+    const cacheKeys = keys.filter(k =>
+      k.startsWith(CACHE_KEYS.QUOTE) ||
       k === CACHE_KEYS.EXCHANGE_RATE
     );
     await AsyncStorage.multiRemove(cacheKeys);
     console.log(`🗑️ Cache cleared: ${cacheKeys.length} items removed`);
   } catch (error) {
     console.error('❌ Cache clear error:', error.message);
+  }
+};
+
+
+// ========== FIND TICKER FUNCTION (EXPERIMENTAL) ==========
+export const findTicker = async (ticker) => {
+  try {
+    const url = `${API_CONFIG.brapi.baseUrl}/quote/list?search=${ticker}`;
+    console.log(`[DEBUG] Searching for ticker: ${ticker}`);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_CONFIG.brapi.bearerToken}`,
+      },
+    });
+    const json = await response.json();
+    console.log(`[DEBUG] Ticker search result for "${ticker}":`, JSON.stringify(json, null, 2));
+    return json;
+  } catch (error) {
+    console.error(`[DEBUG] Error in findTicker for "${ticker}":`, error.message);
+    return null;
+  }
+};
+
+// ========== TEST FUNCTIONS ==========
+export const testFindTicker = async () => {
+  try {
+    console.log('[DEBUG] Running testFindTicker...');
+    await findTicker('BBSE3');
+    console.log('[DEBUG] testFindTicker finished.');
+    return { success: true };
+  } catch (error) {
+    console.error('[DEBUG] testFindTicker failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const testQuotesApi = async () => {
+  try {
+    // Test with a sample asset
+    const testAsset = { ticker: 'PETR4', type: 'Ação' };
+    await fetchQuote(testAsset);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+export const testExchangeRateApi = async () => {
+  try {
+    await fetchExchangeRate();
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 };

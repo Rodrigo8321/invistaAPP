@@ -13,6 +13,14 @@ const PerformanceComparison = ({ portfolio }) => {
     }
 
     return [...portfolio]
+      .filter(asset => {
+        const hasValidData = typeof asset.currentPrice === 'number' &&
+                               !isNaN(asset.currentPrice) &&
+                               typeof asset.averagePrice === 'number' && // Corrigido para averagePrice
+                               !isNaN(asset.averagePrice) &&
+                               asset.averagePrice > 0;
+        return hasValidData;
+      })
       .map(asset => ({
         ticker: asset.ticker,
         name: asset.name,

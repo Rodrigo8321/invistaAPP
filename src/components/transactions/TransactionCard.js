@@ -7,7 +7,7 @@ const TransactionCard = ({ transaction, onDelete }) => {
   const isCompra = transaction.type === 'Compra';
   const total = transaction.quantity * transaction.unitPrice;
   const profit = transaction.profit || 0;
-  const profitPercent = transaction.profitPercent || 0;
+  const profitPercent = typeof transaction.profitPercent === 'number' && !isNaN(transaction.profitPercent) ? transaction.profitPercent : 0;
 
   // Formatar data
   const date = new Date(transaction.date);

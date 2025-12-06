@@ -71,16 +71,21 @@ const AssetCard = ({ asset, onPress }) => {
   };
 
   // Cálculos
-  const profit = (asset.currentPrice - asset.avgPrice) * asset.quantity;
-  const profitPercent = ((asset.currentPrice - asset.avgPrice) / asset.avgPrice) * 100;
+  const currentPrice = typeof asset.currentPrice === 'number' && !isNaN(asset.currentPrice) ? asset.currentPrice : 0;
+  const avgPrice = typeof asset.avgPrice === 'number' && !isNaN(asset.avgPrice) && asset.avgPrice > 0 ? asset.avgPrice : 1;
+  const quantity = typeof asset.quantity === 'number' && !isNaN(asset.quantity) ? asset.quantity : 0;
+
+  const profit = (currentPrice - avgPrice) * quantity;
+  const profitPercent = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
   const isPositive = profit >= 0;
 
   // Formatação de preço
   const formatPrice = (price, currency) => {
+    const validPrice = typeof price === 'number' && !isNaN(price) ? price : 0;
     if (currency === 'USD') {
-      return `$${price.toFixed(2)}`;
+      return `$${validPrice.toFixed(2)}`;
     }
-    return formatCurrency(price);
+    return formatCurrency(validPrice);
   };
 
   return (

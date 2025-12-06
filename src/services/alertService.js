@@ -190,17 +190,20 @@ export const clearTriggeredAlerts = async () => {
 
 // ========== FORMATAR DESCRIÇÃO DO ALERTA ==========
 export const getAlertDescription = (alert) => {
+  if (!alert) return 'Alerta inválido';
+
   const { type, targetValue, ticker } = alert;
-  
+  const hasNumericTarget = typeof targetValue === 'number';
+
   switch (type) {
     case ALERT_TYPES.PRICE_ABOVE:
-      return `${ticker} atingir R$ ${targetValue.toFixed(2)}`;
+      return `${ticker} atingir R$ ${hasNumericTarget ? targetValue.toFixed(2) : '...'}`;
     case ALERT_TYPES.PRICE_BELOW:
-      return `${ticker} cair para R$ ${targetValue.toFixed(2)}`;
+      return `${ticker} cair para R$ ${hasNumericTarget ? targetValue.toFixed(2) : '...'}`;
     case ALERT_TYPES.CHANGE_UP:
-      return `${ticker} subir +${targetValue.toFixed(1)}%`;
+      return `${ticker} subir +${hasNumericTarget ? targetValue.toFixed(1) : '...'}%`;
     case ALERT_TYPES.CHANGE_DOWN:
-      return `${ticker} cair -${targetValue.toFixed(1)}%`;
+      return `${ticker} cair -${hasNumericTarget ? targetValue.toFixed(1) : '...'}%`;
     default:
       return ticker;
   }

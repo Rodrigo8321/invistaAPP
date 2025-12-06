@@ -46,9 +46,19 @@ const RecommendationsCard = ({ portfolio }) => {
     }
 
     // 2. Verificar performance
-    const avgPerformance = portfolio.reduce((sum, asset) => {
-      return sum + ((asset.currentPrice - asset.avgPrice) / asset.avgPrice) * 100;
-    }, 0) / portfolio.length;
+    const validAssets = portfolio.filter(asset =>
+      asset.currentPrice !== undefined &&
+      asset.avgPrice !== undefined &&
+      !isNaN(asset.currentPrice) &&
+      !isNaN(asset.avgPrice) &&
+      asset.avgPrice > 0
+    );
+
+    const avgPerformance = validAssets.length > 0
+      ? validAssets.reduce((sum, asset) => {
+          return sum + ((asset.currentPrice - asset.avgPrice) / asset.avgPrice) * 100;
+        }, 0) / validAssets.length
+      : 0;
 
     if (avgPerformance > 10) {
       recs.push({

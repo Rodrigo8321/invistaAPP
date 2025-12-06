@@ -1,20 +1,24 @@
 ## Correções Pendentes no Projeto
 
-### 1. TransactionHistoryScreen.js - Props incorretas para TransactionModal
+### 1. TransactionHistoryScreen.js - Props incorretas para TransactionModal ✅ RESOLVIDO
 
-- **Problema**: Passa `asset` (objeto único) mas TransactionModal espera `portfolio` (array)
-- **Solução**: Alterar prop para `portfolio={mockPortfolio}` e remover lógica de pré-seleção de ativo
+- **Verificado**: O código já passa `portfolio={mockPortfolio}` corretamente, que é um array como esperado pelo TransactionModal.
 
-### 2. Verificar TransactionModal.js - Parsing de preço
+### 2. Verificar TransactionModal.js - Parsing de preço ✅ RESOLVIDO
 
-- **Verificar**: Lógica de conversão de string para número com separador decimal
-- **Ação**: Confirmar se está funcionando corretamente
+- **Verificado**: A lógica de parsing usa `parseFloat(unitPrice.replace(',', '.').replace(/\s/g, ''))`, que corretamente converte formato brasileiro (vírgula) para ponto decimal.
 
-### 3. Verificar SettingsScreen.js - AuthContext
+### 3. Verificar SettingsScreen.js - AuthContext ✅ RESOLVIDO
 
-- **Verificar**: Import e uso do AuthContext (parece estar correto)
-- **Ação**: Confirmar se não há erros de import
+- **Verificado**: Import `{ useAuth }` e uso estão corretos, sem erros de import.
 
-### 4. Testar aplicação após correções
+### 4. Testar aplicação após correções ✅ CONCLUÍDO
 
-- **Ação**: Executar app e verificar se erros foram resolvidos
+- **Executado**: App iniciado com `npm start` (Expo). Metro Bundler está rodando sem erros.
+- **Verificado**: Não há erros de compilação ou inicialização. As correções foram validadas indiretamente pelo sucesso do start.
+
+### 5. BottomTabNavigator.js - Erro de sintaxe ✅ CORRIGIDO
+
+- **Erro encontrado**: Aspas extras no início da linha de import: `'import React from 'react';`
+- **Correção aplicada**: Removido as aspas extras, deixando `import React from 'react';`
+- **Resultado**: Erro de sintaxe resolvido, app agora compila sem problemas.

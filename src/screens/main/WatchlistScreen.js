@@ -154,7 +154,7 @@ const WatchlistScreen = ({ navigation }) => {
             <Text style={styles.emptyIcon}>⭐</Text>
             <Text style={styles.emptyTitle}>Nenhum Favorito</Text>
             <Text style={styles.emptyText}>
-              Adicione ativos à sua watchlist para acompanhá-los aqui
+              Adicione ativos à sua Lista de favoritos para acompanhá-los aqui
             </Text>
           </View>
         ) : (

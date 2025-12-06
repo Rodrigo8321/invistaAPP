@@ -1,5 +1,6 @@
-import React, { createContext, useState, useContext } from 'react';
-import storageService from '../services/storageService';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { transactionService } from '../services/transactionService';
+import storageService from '../services/storageService'; // Manter para addAsset, se necessário
 
 export const PortfolioContext = createContext();
 
@@ -13,103 +14,112 @@ export const usePortfolio = () => {
 
 export const PortfolioProvider = ({ children }) => {
   const [portfolio, setPortfolio] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Carrega o portfólio uma vez quando o app inicia
+  useEffect(() => {
+    loadPortfolio();
+  }, []);
 
 
-  const loadPortfolio = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const savedPortfolio = await storageService.loadPortfolio();
-      setPortfolio(savedPortfolio);
-    } catch (err) {
-      console.error('❌ Erro ao carregar portfolio:', err);
-      setError('Erro ao carregar portfolio');
-    } finally {
-      setLoading(false);
+
+const loadPortfolio = async () => {
+  try {
+    setLoading(true);
+    setError(null);
+    // 1. Buscar todas as transações salvas
+    const transactions = await transactionService.getTransactions();
+    // 2. Calcular o estado do portfólio com base nessas transações
+    const calculatedPortfolio = transactionService.calculatePortfolioFromTransactions(transactions);
+    setPortfolio(calculatedPortfolio);
+    console.log('✅ Portfólio calculado a partir de', transactions.length, 'transações.');
+  } catch (err) {
+    console.error('❌ Erro ao carregar portfolio:', err);
+    setError('Erro ao carregar portfolio');
+  } finally {
+    setLoading(false);
+  }
+};
+
+const savePortfolio = async (newPortfolio) => {
+  try {
+    setError(null);
+    // Esta função se torna obsoleta, pois o portfólio é sempre calculado.
+    // A persistência agora é feita no nível da transação.
+    console.warn('savePortfolio não é mais necessário. O portfólio é calculado dinamicamente.');
+    setPortfolio(newPortfolio);
+    return Promise.resolve(true);
+  } catch (err) {
+    console.error('❌ Erro ao salvar portfolio:', err);
+    setError('Erro ao salvar portfolio');
+    return false;
+  }
+};
+
+const addAsset = async (assetData) => {
+  try {
+    setError(null);
+    const success = await transactionService.addTransaction({
+      ...assetData,
+      type: 'Compra',
+      typeAsset: assetData.type, // Garante que o tipo do ativo seja passado para a transação
+    });
+    if (success) {
+      await loadPortfolio(); // Recalcula o portfólio para incluir o novo ativo
     }
-  };
+    return success;
+  } catch (err) {
+    console.error('❌ Erro ao adicionar ativo:', err);
+    setError('Erro ao adicionar ativo');
+    throw err;
+  }
+};
 
-  const savePortfolio = async (newPortfolio) => {
-    try {
-      setError(null);
-      const success = await storageService.savePortfolio(newPortfolio);
-      if (success) {
-        setPortfolio(newPortfolio);
-        return true;
-      } else {
-        throw new Error('Falha ao salvar portfolio');
-      }
-    } catch (err) {
-      console.error('❌ Erro ao salvar portfolio:', err);
-      setError('Erro ao salvar portfolio');
-      return false;
-    }
-  };
+const updateAsset = async (assetId, updates) => {
+  try {
+    setError(null);
+    // A atualização de um ativo (ex: preço médio, quantidade) é feita
+    // registrando novas transações (compra/venda), não editando o ativo diretamente.
+    console.warn('updateAsset não é mais suportado. Registre uma nova transação.');
+    return null;
+  } catch (err) {
+    console.error('❌ Erro ao atualizar ativo:', err);
+    setError('Erro ao atualizar ativo');
+    throw err;
+  }
+};
 
-  const addAsset = async (assetData) => {
-    try {
-      setError(null);
-      const newAsset = await storageService.addAsset(assetData);
-      setPortfolio(prev => [...prev, newAsset]);
-      console.log('✅ Ativo adicionado ao contexto:', newAsset.ticker);
-      return newAsset;
-    } catch (err) {
-      console.error('❌ Erro ao adicionar ativo:', err);
-      setError('Erro ao adicionar ativo');
-      throw err;
-    }
-  };
+const removeAsset = async (assetId) => {
+  try {
+    setError(null);
+    // Remover um ativo significa remover todas as suas transações.
+    // Esta é uma operação destrutiva e deve ser implementada com cuidado.
+    // Por ora, vamos apenas avisar.
+    console.warn(`Remover ativo ${assetId} requer a remoção de todas as suas transações.`);
+    return true;
+  } catch (err) {
+    console.error('❌ Erro ao remover ativo:', err);
+    setError('Erro ao remover ativo');
+    throw err;
+  }
+};
 
-  const updateAsset = async (assetId, updates) => {
-    try {
-      setError(null);
-      const updatedAsset = await storageService.updateAsset(assetId, updates);
-      setPortfolio(prev =>
-        prev.map(asset =>
-          asset.id === assetId ? updatedAsset : asset
-        )
-      );
-      console.log('✅ Ativo atualizado no contexto:', updatedAsset.ticker);
-      return updatedAsset;
-    } catch (err) {
-      console.error('❌ Erro ao atualizar ativo:', err);
-      setError('Erro ao atualizar ativo');
-      throw err;
-    }
-  };
+const getAssetById = (assetId) => {
+  return portfolio.find(asset => asset.id === assetId);
+};
 
-  const removeAsset = async (assetId) => {
-    try {
-      setError(null);
-      await storageService.removeAsset(assetId);
-      setPortfolio(prev => prev.filter(asset => asset.id !== assetId));
-      console.log('✅ Ativo removido do contexto');
-      return true;
-    } catch (err) {
-      console.error('❌ Erro ao remover ativo:', err);
-      setError('Erro ao remover ativo');
-      throw err;
-    }
-  };
+const getAssetsByCountry = (country) => {
+  if (country === 'all') return portfolio;
+  return portfolio.filter(asset => asset.country === country);
+};
 
-  const getAssetById = (assetId) => {
-    return portfolio.find(asset => asset.id === assetId);
-  };
+const getAssetsByType = (type) => {
+  if (type === 'all') return portfolio;
+  return portfolio.filter(asset => asset.type === type);
+};
 
-  const getAssetsByCountry = (country) => {
-    if (country === 'all') return portfolio;
-    return portfolio.filter(asset => asset.country === country);
-  };
-
-  const getAssetsByType = (type) => {
-    if (type === 'all') return portfolio;
-    return portfolio.filter(asset => asset.type === type);
-  };
-
-  const getPortfolioStats = () => {
+const getPortfolioStats = () => {
     const totalAssets = portfolio.length;
     const totalInvested = portfolio.reduce((sum, asset) => sum + (asset.avgPrice * asset.quantity), 0);
     const totalCurrent = portfolio.reduce((sum, asset) => sum + (asset.currentPrice * asset.quantity), 0);
@@ -161,6 +171,7 @@ export const PortfolioProvider = ({ children }) => {
     loadPortfolio,
     savePortfolio,
     addAsset,
+    reloadPortfolio: loadPortfolio, // Adiciona o alias para a função
     updateAsset,
     removeAsset,
 
