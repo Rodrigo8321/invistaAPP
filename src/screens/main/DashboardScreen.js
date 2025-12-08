@@ -31,7 +31,7 @@ const DashboardScreen = ({ navigation }) => {
 
   // 4. Função para buscar dados em tempo real
   const loadRealData = async (showLoader = true) => {
-    if (portfolio.length === 0) {
+    if (!portfolio || portfolio.length === 0) {
       setLoading(false);
       setRefreshing(false);
       return;
@@ -340,15 +340,15 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.allocationChart}>
             <View style={styles.allocationBar}>
               {categoryAllocations.map((category, index) => {
-                const colors = ['#4F46E5', '#7C3AED', '#EC4899', '#F59E0B', '#10B981', '#06B6D4'];
-                const color = colors[index % colors.length];
+                const vibrantColors = ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#84CC16'];
+                const color = vibrantColors[index % vibrantColors.length];
 
                 return (
                   <View
                     key={category.type}
                     style={[
                       styles.allocationBarFill,
-                      { width: `${category.percentage}%`, backgroundColor: color }
+                      { width: `${category.percentage}%`, backgroundColor: color, marginRight: index < categoryAllocations.length - 1 ? 2 : 0 }
                     ]}
                   />
                 );
@@ -360,8 +360,8 @@ const DashboardScreen = ({ navigation }) => {
               contentContainerStyle={styles.allocationLegend}
             >
               {categoryAllocations.map((category, index) => {
-                const colors = ['#4F46E5', '#7C3AED', '#EC4899', '#F59E0B', '#10B981', '#06B6D4'];
-                const color = colors[index % colors.length];
+                const vibrantColors = ['#6366F1', '#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#06B6D4', '#F97316', '#84CC16'];
+                const color = vibrantColors[index % vibrantColors.length];
 
                 return (
                   <View key={category.type} style={styles.allocationLegendItem}>
@@ -452,7 +452,9 @@ const DashboardScreen = ({ navigation }) => {
             >
               <View style={styles.assetCardLeft}>
                 <View style={styles.assetRank}>
-                  <Text style={styles.assetRankText}>{index + 1}</Text>
+                  <Text style={styles.assetRankText}>
+                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                  </Text>
                 </View>
                 <View style={styles.assetInfo}>
                   <View style={styles.assetTitleRow}>
@@ -472,9 +474,12 @@ const DashboardScreen = ({ navigation }) => {
                     styles.assetProfitText,
                     { color: asset.profit >= 0 ? colors.success : colors.danger }
                   ]}>
-                    {asset.profit >= 0 ? '+' : ''}{formatPercent(asset.profitPercent)}
+                    {asset.profit >= 0 ? '▲' : '▼'} {asset.profit >= 0 ? '+' : ''}{formatPercent(asset.profitPercent)}
                   </Text>
                 </View>
+                <Text style={styles.assetWeeklyChange}>
+                  Semana: {asset.weeklyChange >= 0 ? '+' : ''}{formatPercent(asset.weeklyChange)}
+                </Text>
               </View>
             </TouchableOpacity>
           ))}
@@ -604,7 +609,14 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
-    paddingBottom: 80, // Espaço para o card de USD sobrepor
+    paddingBottom: 32,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    // Shadow for Android
+    elevation: 8,
   },
   heroHeader: {
     flexDirection: 'row',
@@ -685,9 +697,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
   },
   usdInvestmentSection: {
-    marginTop: -60, // Puxa para cima sobrepondo a base do hero
     paddingHorizontal: 24,
-    marginBottom: 12,
+    marginBottom: 24,
   },
 
   // ALOCAÇÃO
@@ -781,6 +792,64 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 24,
   },
+  topCardsSection: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  segmentGroup: {
+    marginBottom: 20,
+  },
+  segmentTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  topCardsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  topCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    // Shadow for Android
+    elevation: 2,
+  },
+  topCardTicker: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  topCardName: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 8,
+    numberOfLines: 2,
+  },
+  topCardProfit: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  topCardProfitPercent: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   performerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -868,6 +937,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  assetWeeklyChange: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
 
   // QUICK ACTIONS
   quickActionsSection: {
@@ -882,11 +956,18 @@ const styles = StyleSheet.create({
   quickActionCard: {
     width: (width - 56) / 2,
     backgroundColor: colors.surface,
-    padding: 20,
-    borderRadius: 16,
+    padding: 24,
+    borderRadius: 20,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.border,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    // Shadow for Android
+    elevation: 6,
   },
   quickActionIcon: {
     fontSize: 32,
@@ -900,16 +981,16 @@ const styles = StyleSheet.create({
 
 
   usdInvestmentCard: {
-    backgroundColor: '#1E293B', // Cor de fundo escura para destaque
+    backgroundColor: colors.primary,
     padding: 20,
     borderRadius: 16,
     // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
     // Shadow for Android
-    elevation: 16,
+    elevation: 20,
   },
   usdInvestmentTitle: {
     fontSize: 18,

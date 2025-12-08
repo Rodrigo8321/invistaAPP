@@ -1,8 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG, buildURL, logAPICall } from '../config/apiConfig';
+import { BRAPI_BEARER_TOKEN } from '@env';
+import Brapi from 'brapi';
 
 // ========== CACHE MANAGER ==========
 const CACHE_KEYS = {
+  // NOTA: O cache de cotações individuais foi desativado intencionalmente
+  // para garantir dados em tempo real na tela de detalhes.
+  // Se a performance se tornar um problema, reativar o cache aqui
+  // e no orquestrador `fetchQuote` pode ser uma solução.
   QUOTE: 'market_quote_',
   EXCHANGE_RATE: 'exchange_rate_USDBRL',
 };
@@ -47,40 +53,33 @@ const CRYPTO_ID_MAP = {
   MATIC: 'matic-network',
 };
 
+// ========== CLIENTE DA SDK BRAPI (LAZY INITIALIZATION) ==========
+let brapiClient = null;
+
+const getBrapiClient = () => {
+  if (!brapiClient) {
+    // Inicializa o cliente apenas na primeira vez que for usado.
+    // Isso garante que a variável de ambiente já foi carregada.
+    brapiClient = new Brapi({ apiKey: BRAPI_BEARER_TOKEN });
+  }
+  return brapiClient;
+};
+
 // ========== BRAPI (ATIVOS BRASILEIROS) - CORRIGIDO ==========
 const fetchBrapiQuote = async (ticker) => {
   try {
-    const url = `${API_CONFIG.brapi.baseUrl}/quote/${ticker}`;
-
     console.log(`🇧🇷 Fetching Brapi: ${ticker}...`);
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${API_CONFIG.brapi.bearerToken}`,
-      },
-    });
-
-    // CORREÇÃO: Verifica se resposta é JSON
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      throw new Error('API returned non-JSON response (HTML)');
-    }
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.log('DEBUG: Corpo da resposta de erro da Brapi:', errorBody);
-      throw new Error(`Brapi HTTP ${response.status}`);
-    }
-
-    const json = await response.json();
+    // Utiliza a SDK oficial da Brapi através do getter
+    const client = getBrapiClient();
+    const json = await client.quote.retrieve(ticker);
 
     if (!json.results || json.results.length === 0) {
       throw new Error('No data from Brapi');
     }
 
+    // A SDK já trata erros de autenticação e rede, simplificando o código.
+    // Se o token for inválido, a SDK lançará um erro que será capturado pelo catch.
     const quote = json.results[0];
 
     logAPICall('Brapi', ticker, 'SUCCESS');
@@ -99,7 +98,11 @@ const fetchBrapiQuote = async (ticker) => {
     };
   } catch (error) {
     const isNotFound = error.message.includes('404');
-    logAPICall('Brapi', ticker, isNotFound ? `WARN: Ticker not found` : `ERROR: ${error.message}`);
+    const isUnauthorized = error.message.includes('401');
+
+    const errorMessage = isUnauthorized ? 'ERROR: Invalid Token' : `ERROR: ${error.message}`;
+    logAPICall('Brapi', ticker, isNotFound ? `WARN: Ticker not found` : errorMessage);
+
     throw error;
   }
 };
@@ -210,7 +213,7 @@ export const fetchExchangeRate = async () => {
     // CORREÇÃO: Verifica cache primeiro (reduz requisições)
     if (API_CONFIG.cache.enabled) {
       const cached = await getFromCache(CACHE_KEYS.EXCHANGE_RATE);
-      if (cached) {
+      if (cached && typeof cached === 'number' && !isNaN(cached)) {
         console.log(`✅ ExchangeRate: USD/BRL = ${cached.toFixed(2)} (cached)`);
         return cached;
       }
@@ -220,14 +223,30 @@ export const fetchExchangeRate = async () => {
 
     console.log('💱 Fetching exchange rate USD/BRL...');
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'InvistaApp/1.0',
+      },
+      timeout: 5000,
+    });
 
     if (!response.ok) {
       throw new Error(`Exchange Rate API HTTP ${response.status}`);
     }
 
     const json = await response.json();
+
+    if (!json || !json.USDBRL || !json.USDBRL.bid) {
+      throw new Error('Resposta da API de câmbio inválida');
+    }
+
     const rate = parseFloat(json.USDBRL.bid);
+
+    if (isNaN(rate) || rate <= 0) {
+      throw new Error('Taxa de câmbio inválida recebida da API');
+    }
 
     logAPICall('ExchangeRate', 'USD/BRL', 'SUCCESS');
     console.log(`✅ ExchangeRate: USD/BRL = ${rate.toFixed(2)}`);
@@ -243,7 +262,7 @@ export const fetchExchangeRate = async () => {
       const expiredCache = await AsyncStorage.getItem(CACHE_KEYS.EXCHANGE_RATE);
       if (expiredCache) {
         const { data } = JSON.parse(expiredCache);
-        if (typeof data === 'number' && !isNaN(data)) {
+        if (typeof data === 'number' && !isNaN(data) && data > 0) {
           console.warn(`⚠️ Using expired cache exchange rate: ${data.toFixed(2)}`);
           return data;
         }
@@ -260,13 +279,9 @@ export const fetchExchangeRate = async () => {
 export const fetchQuote = async (asset) => {
   const cacheKey = `${CACHE_KEYS.QUOTE}${asset.ticker}`;
 
+  // O cache de cotações individuais está desativado para garantir dados em tempo real.
+  // A lógica de cache foi mantida, mas comentada, para fácil reativação se necessário.
   try {
-    // // Verifica cache - DESATIVADO PARA GARANTIR DADOS EM TEMPO REAL
-    // if (API_CONFIG.cache.enabled) {
-    //   const cached = await getFromCache(cacheKey);
-    //   if (cached) return cached;
-    // }
-
     let quote;
 
     // Detecta tipo e chama API correta
@@ -279,9 +294,6 @@ export const fetchQuote = async (asset) => {
     } else {
       throw new Error(`Unknown asset type: ${asset.type}`);
     }
-
-    // // Salva no cache - DESATIVADO
-    // await saveToCache(cacheKey, quote);
 
     return quote;
   } catch (error) {
@@ -303,6 +315,7 @@ export const fetchQuote = async (asset) => {
         open: asset.currentPrice || 0,
         previousClose: asset.averagePrice || 0,
         updatedAt: new Date().toISOString(),
+        fundamentals: asset.fundamentals, // Preserva os fundamentos originais no mock
         isMock: true,
       };
     }
@@ -322,6 +335,35 @@ export const clearCache = async () => {
     console.log(`🗑️ Cache cleared: ${cacheKeys.length} items removed`);
   } catch (error) {
     console.error('❌ Cache clear error:', error.message);
+  }
+};
+
+// ========== LIMPEZA DE CACHE DE PESQUISA ==========
+export const clearSearchCache = async () => {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    // Remove caches relacionados à pesquisa de tickers e dados corrompidos
+    const searchCacheKeys = keys.filter(k =>
+      k.includes('search') ||
+      k.includes('BBSE3') ||
+      k.includes('ticker') ||
+      k.startsWith('market_quote_BBSE3') ||
+      // Remove caches que podem ter dados undefined/null
+      (k.startsWith('market_quote_') && k.length > 20)
+    );
+
+    if (searchCacheKeys.length > 0) {
+      await AsyncStorage.multiRemove(searchCacheKeys);
+      console.log(`🗑️ Search cache cleared: ${searchCacheKeys.length} items removed`);
+      console.log('Removed keys:', searchCacheKeys);
+    } else {
+      console.log('ℹ️ No search cache found to clear');
+    }
+
+    return { success: true, removed: searchCacheKeys.length };
+  } catch (error) {
+    console.error('❌ Search cache clear error:', error.message);
+    return { success: false, error: error.message };
   }
 };
 

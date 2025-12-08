@@ -64,7 +64,7 @@ const RecommendationsCard = ({ portfolio }) => {
       recs.push({
         icon: '🎯',
         title: 'Performance Excelente',
-        description: `Portfolio com performance média de ${avgPerformance.toFixed(2)}%. Mantenha a estratégia.`,
+        description: `Portfolio com performance média de ${(avgPerformance || 0).toFixed(2)}%. Mantenha a estratégia.`,
         priority: 'low',
       });
     } else if (avgPerformance < -5) {

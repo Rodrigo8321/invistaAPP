@@ -159,7 +159,7 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded, ini
   const handleSelectAsset = (asset) => {
     setSelectedAsset(asset);
     setShowAssetPicker(false);
-    setUnitPrice(asset.currentPrice.toFixed(2));
+    setUnitPrice((asset.currentPrice || 0).toFixed(2));
   };
 
   return (
@@ -203,7 +203,7 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded, ini
                         <Text style={styles.assetItemName}>{asset.name}</Text>
                       </View>
                       <Text style={styles.assetItemPrice}>
-                        R$ {asset.currentPrice.toFixed(2)}
+                        R$ {(asset.currentPrice || 0).toFixed(2)}
                       </Text>
                     </TouchableOpacity>
                   ))}

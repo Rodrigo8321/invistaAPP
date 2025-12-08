@@ -57,7 +57,7 @@ const PerformanceComparison = ({ portfolio }) => {
           </View>
           <View style={styles.itemStats}>
             <Text style={[styles.performance, { color }]}>
-              {isPositive ? '▲' : '▼'} {Math.abs(asset.performance).toFixed(2)}%
+              {isPositive ? '▲' : '▼'} {Math.abs(asset.performance || 0).toFixed(2)}%
             </Text>
           </View>
         </View>
@@ -121,7 +121,7 @@ const PerformanceComparison = ({ portfolio }) => {
         <Text style={[styles.averageValue, {
           color: avgPerformance >= 0 ? colors.success : colors.danger
         }]}>
-          {avgPerformance >= 0 ? '+' : ''}{avgPerformance.toFixed(2)}%
+          {avgPerformance >= 0 ? '+' : ''}{(avgPerformance || 0).toFixed(2)}%
         </Text>
       </View>
     </View>

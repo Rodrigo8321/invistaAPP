@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ALPHA_VANTAGE_API_KEY } from '@env';
 
-const API_KEY = 'DEMO'; // Usar 'DEMO' para testes, depois obter key em alphavantage.co
+// A chave é carregada do arquivo .env, com 'DEMO' como fallback.
+const API_KEY = ALPHA_VANTAGE_API_KEY || 'DEMO';
 const BASE_URL = 'https://www.alphavantage.co/query';
 const CACHE_KEY = '@InvestPro:alphaVantageCache';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos

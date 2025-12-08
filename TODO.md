@@ -1,24 +1,46 @@
-## Correções Pendentes no Projeto
+# AssetDetailScreen Improvements
 
-### 1. TransactionHistoryScreen.js - Props incorretas para TransactionModal ✅ RESOLVIDO
+## Visual Design Enhancements
 
-- **Verificado**: O código já passa `portfolio={mockPortfolio}` corretamente, que é um array como esperado pelo TransactionModal.
+- [ ] Add shadows and elevation to cards for depth
+- [ ] Improve spacing and padding throughout the screen
+- [ ] Enhance color scheme and typography hierarchy
+- [ ] Add gradient backgrounds for better visual appeal
 
-### 2. Verificar TransactionModal.js - Parsing de preço ✅ RESOLVIDO
+## Header Section Improvements
 
-- **Verificado**: A lógica de parsing usa `parseFloat(unitPrice.replace(',', '.').replace(/\s/g, ''))`, que corretamente converte formato brasileiro (vírgula) para ponto decimal.
+- [x] Make asset icon more prominent with better styling
+- [x] Improve price display layout with better visual separation
+- [x] Add loading states for price updates
 
-### 3. Verificar SettingsScreen.js - AuthContext ✅ RESOLVIDO
+## Summary Card Enhancements
 
-- **Verificado**: Import `{ useAuth }` e uso estão corretos, sem erros de import.
+- [ ] Add gradient backgrounds based on profit/loss
+- [ ] Improve visual indicators for positive/negative performance
+- [ ] Better typography and spacing
 
-### 4. Testar aplicação após correções ✅ CONCLUÍDO
+## Chart Section Improvements
 
-- **Executado**: App iniciado com `npm start` (Expo). Metro Bundler está rodando sem erros.
-- **Verificado**: Não há erros de compilação ou inicialização. As correções foram validadas indiretamente pelo sucesso do start.
+- [ ] Enhance period selector with better styling
+- [ ] Add loading states for chart data
+- [ ] Improve chart container styling
 
-### 5. BottomTabNavigator.js - Erro de sintaxe ✅ CORRIGIDO
+## Fundamentals Section
 
-- **Erro encontrado**: Aspas extras no início da linha de import: `'import React from 'react';`
-- **Correção aplicada**: Removido as aspas extras, deixando `import React from 'react';`
-- **Resultado**: Erro de sintaxe resolvido, app agora compila sem problemas.
+- [x] Better grid layout for fundamentals data
+- [x] Add color coding for good/bad values
+- [x] Improve typography and spacing
+
+## Action Buttons
+
+- [ ] Make buttons more prominent with better sizing
+- [ ] Add press effects and animations
+- [ ] Improve button layout and spacing
+- [ ] Add icons and better visual hierarchy
+
+## General UX Improvements
+
+- [ ] Add pull-to-refresh functionality
+- [ ] Better error handling and empty states
+- [ ] Improve accessibility
+- [ ] Add haptic feedback for interactions

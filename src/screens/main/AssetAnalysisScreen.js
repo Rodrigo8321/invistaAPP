@@ -171,12 +171,12 @@ const AssetAnalysisScreen = () => {
                 <Text style={styles.assetSector}>{assetData.sector}</Text>
               </View>
               <View style={styles.assetPriceInfo}>
-                <Text style={styles.currentPrice}>R$ {assetData.price.toFixed(2)}</Text>
+                <Text style={styles.currentPrice}>R$ {((assetData.price || 0)).toFixed(2)}</Text>
                 <Text style={[
                   styles.priceChange,
-                  { color: assetData.change >= 0 ? colors.success : colors.danger }
+                  { color: (assetData.change || 0) >= 0 ? colors.success : colors.danger }
                 ]}>
-                  {assetData.change >= 0 ? '+' : ''}{assetData.change.toFixed(2)} ({assetData.changePercent.toFixed(2)}%)
+                  {(assetData.change || 0) >= 0 ? '+' : ''}{(assetData.change || 0).toFixed(2)} ({(assetData.changePercent || 0).toFixed(2)}%)
                 </Text>
                 <Text style={styles.volume}>Vol: {assetData.volume}</Text>
               </View>
@@ -188,35 +188,35 @@ const AssetAnalysisScreen = () => {
               <View style={styles.fundamentalsGrid}>
                 <View style={styles.fundamentalItem}>
                   <Text style={styles.fundamentalLabel}>P/L</Text>
-                  <Text style={styles.fundamentalValue}>{assetData.fundamentals.pe.toFixed(2)}</Text>
+                  <Text style={styles.fundamentalValue}>{(assetData.fundamentals?.pe || 0).toFixed(2)}</Text>
                 </View>
                 <View style={styles.fundamentalItem}>
                   <Text style={styles.fundamentalLabel}>P/VP</Text>
-                  <Text style={styles.fundamentalValue}>{assetData.fundamentals.pb.toFixed(2)}</Text>
+                  <Text style={styles.fundamentalValue}>{(assetData.fundamentals?.pb || 0).toFixed(2)}</Text>
                 </View>
                 <View style={styles.fundamentalItem}>
                   <Text style={styles.fundamentalLabel}>P/S</Text>
-                  <Text style={styles.fundamentalValue}>{assetData.fundamentals.ps.toFixed(2)}</Text>
+                  <Text style={styles.fundamentalValue}>{(assetData.fundamentals?.ps || 0).toFixed(2)}</Text>
                 </View>
                 <View style={styles.fundamentalItem}>
                   <Text style={styles.fundamentalLabel}>EV/EBITDA</Text>
-                  <Text style={styles.fundamentalValue}>{assetData.fundamentals.evEbitda.toFixed(2)}</Text>
+                  <Text style={styles.fundamentalValue}>{(assetData.fundamentals?.evEbitda || 0).toFixed(2)}</Text>
                 </View>
                 <View style={styles.fundamentalItem}>
                   <Text style={styles.fundamentalLabel}>ROE</Text>
-                  <Text style={styles.fundamentalValue}>{assetData.fundamentals.roe.toFixed(1)}%</Text>
+                  <Text style={styles.fundamentalValue}>{(assetData.fundamentals?.roe || 0).toFixed(1)}%</Text>
                 </View>
                 <View style={styles.fundamentalItem}>
                   <Text style={styles.fundamentalLabel}>ROA</Text>
-                  <Text style={styles.fundamentalValue}>{assetData.fundamentals.roa.toFixed(1)}%</Text>
+                  <Text style={styles.fundamentalValue}>{(assetData.fundamentals?.roa || 0).toFixed(1)}%</Text>
                 </View>
                 <View style={styles.fundamentalItem}>
                   <Text style={styles.fundamentalLabel}>Dívida/PL</Text>
-                  <Text style={styles.fundamentalValue}>{assetData.fundamentals.debtToEquity.toFixed(2)}</Text>
+                  <Text style={styles.fundamentalValue}>{(assetData.fundamentals?.debtToEquity || 0).toFixed(2)}</Text>
                 </View>
                 <View style={styles.fundamentalItem}>
                   <Text style={styles.fundamentalLabel}>Dividend Yield</Text>
-                  <Text style={styles.fundamentalValue}>{assetData.fundamentals.dividendYield.toFixed(1)}%</Text>
+                  <Text style={styles.fundamentalValue}>{(assetData.fundamentals?.dividendYield || 0).toFixed(1)}%</Text>
                 </View>
               </View>
             </View>

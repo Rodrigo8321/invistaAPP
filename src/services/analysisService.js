@@ -1,5 +1,5 @@
 const safeToFixed = (value, decimals = 2) => {
-  if (typeof value !== 'number' || isNaN(value)) return 'N/A';
+  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) return 'N/A';
   return value.toFixed(decimals);
 };
 

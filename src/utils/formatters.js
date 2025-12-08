@@ -50,5 +50,18 @@ export const formatPercent = (value) => {
   if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) {
     return '0,00%';
   }
-  return `${value.toFixed(2).replace('.', ',')}%`;
+  return `${(value || 0).toFixed(2).replace('.', ',')}%`;
+};
+
+/**
+ * Formata um número como moeda de forma segura.
+ * @param {number} value - O valor a ser formatado.
+ * @param {string} currency - O código da moeda.
+ * @returns {string} A string formatada ou 'N/A' se inválido.
+ */
+export const formatCurrencySafe = (value, currency = 'BRL') => {
+  if (value === null || value === undefined || typeof value !== 'number' || isNaN(value)) {
+    return 'N/A';
+  }
+  return formatCurrency(value, currency);
 };

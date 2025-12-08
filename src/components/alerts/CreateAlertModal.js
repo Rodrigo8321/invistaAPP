@@ -54,10 +54,10 @@ const CreateAlertModal = ({ visible, onClose, portfolio }) => {
         description = `${asset.ticker} cair para ${formatCurrency(value)}`;
         break;
       case ALERT_TYPES.CHANGE_UP:
-        description = `${asset.ticker} subir +${value.toFixed(1)}%`;
+        description = `${asset.ticker} subir +${(value || 0).toFixed(1)}%`;
         break;
       case ALERT_TYPES.CHANGE_DOWN:
-        description = `${asset.ticker} cair -${value.toFixed(1)}%`;
+        description = `${asset.ticker} cair -${(value || 0).toFixed(1)}%`;
         break;
     }
 

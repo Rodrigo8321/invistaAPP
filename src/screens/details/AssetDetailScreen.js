@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+
 import { colors } from '../../styles/colors';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { fetchQuote } from '../../services/marketService';
@@ -19,6 +20,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
   const { asset } = route.params;
   const [chartPeriod, setChartPeriod] = useState(30);
   const [loading, setLoading] = useState(true);
+  const [priceLoading, setPriceLoading] = useState(false);
   const [realAsset, setRealAsset] = useState(asset);
   const [alertModalVisible, setAlertModalVisible] = useState(false);
 
@@ -28,7 +30,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
   }, [asset.ticker]);
 
   const loadRealPrice = async () => {
-    setLoading(true);
+    setPriceLoading(true);
     try {
       console.log(`📊 Carregando preço real para ${asset.ticker}...`);
 
@@ -41,23 +43,27 @@ const AssetDetailScreen = ({ route, navigation }) => {
           currentPrice: quote.price,
           change: quote.change || 0,
           changePercent: quote.changePercent || 0,
+          fundamentals: prev.fundamentals, // Mantém os fundamentos originais
         }));
-      } else {
-        console.log(`⚠️ Não conseguiu preço real para ${asset.ticker}, usando local`);
       }
     } catch (error) {
-      console.error(`❌ Erro ao carregar preço:`, error);
+      console.error(`❌ Erro ao carregar preço para ${asset.ticker}, usando dados locais. Erro:`, error.message);
+      // Em caso de erro, não alteramos o estado, mantendo os dados que já temos.
     } finally {
-      setLoading(false);
+      setPriceLoading(false);
     }
   };
 
   // Calcular dados do ativo
   const assetData = useMemo(() => {
-    const invested = realAsset.quantity * realAsset.avgPrice;
-    const current = realAsset.quantity * realAsset.currentPrice;
+    const quantity = realAsset.quantity || 0;
+    const avgPrice = realAsset.avgPrice || 0;
+    const currentPrice = realAsset.currentPrice || 0;
+
+    const invested = quantity * avgPrice;
+    const current = quantity * currentPrice;
     const profit = current - invested;
-    const profitPercent = (profit / invested) * 100;
+    const profitPercent = invested > 0 ? (profit / invested) * 100 : 0;
     const isPositive = profit >= 0;
 
     return {
@@ -107,44 +113,84 @@ const AssetDetailScreen = ({ route, navigation }) => {
 
     const getFormattedValue = (value, isPercent = false) => {
       if (typeof value !== 'number' || isNaN(value)) return 'N/A';
-      const formatted = value.toFixed(2);
+      const formatted = (value || 0).toFixed(2);
       return isPercent ? `${formatted}%` : formatted;
     };
 
+    const getValueColor = (label, value) => {
+      if (typeof value !== 'number' || isNaN(value)) return colors.textSecondary;
+
+      switch (label) {
+        case 'P/L':
+          return value < 15 ? colors.success : value < 25 ? colors.warning : colors.danger;
+        case 'P/VP':
+          return value < 1.5 ? colors.success : value < 2.5 ? colors.warning : colors.danger;
+        case 'DY':
+          return value > 5 ? colors.success : value > 3 ? colors.warning : colors.danger;
+        case 'ROE':
+          return value > 15 ? colors.success : value > 10 ? colors.warning : colors.danger;
+        case 'Dív. Líq/EBITDA':
+          return value < 3 ? colors.success : value < 5 ? colors.warning : colors.danger;
+        case 'Liq. Corrente':
+          return value > 1.5 ? colors.success : value > 1 ? colors.warning : colors.danger;
+        case 'Marg. Líquida':
+          return value > 10 ? colors.success : value > 5 ? colors.warning : colors.danger;
+        case 'Vacância':
+          return value < 5 ? colors.success : value < 10 ? colors.warning : colors.danger;
+        default:
+          return colors.text;
+      }
+    };
+
     const fundamentalItems = [
-      { label: 'P/L', value: getFormattedValue(fundamentals.pl), show: !isFII },
-      { label: 'P/VP', value: getFormattedValue(fundamentals.pvp) },
-      { label: 'DY', value: getFormattedValue(fundamentals.dy, true) },
-      { label: 'ROE', value: getFormattedValue(fundamentals.roe, true), show: !isFII },
-      { label: 'Dív. Líq/EBITDA', value: getFormattedValue(fundamentals.dividaLiquidaEbitda), show: !isFII },
-      { label: 'Liq. Corrente', value: getFormattedValue(fundamentals.liquidezCorrente), show: !isFII },
-      { label: 'Marg. Líquida', value: getFormattedValue(fundamentals.margemLiquida, true), show: !isFII },
-      { label: 'Vacância', value: getFormattedValue(fundamentals.vacancia, true), show: isFII },
+      { label: 'P/L', value: fundamentals.pl, isPercent: false, show: !isFII },
+      { label: 'P/VP', value: fundamentals.pvp, isPercent: false },
+      { label: 'DY', value: fundamentals.dy, isPercent: true },
+      { label: 'ROE', value: fundamentals.roe, isPercent: true, show: !isFII },
+      { label: 'Dív. Líq/EBITDA', value: fundamentals.dividaLiquidaEbitda, isPercent: false, show: !isFII },
+      { label: 'Liq. Corrente', value: fundamentals.liquidezCorrente, isPercent: false, show: !isFII },
+      { label: 'Marg. Líquida', value: fundamentals.margemLiquida, isPercent: true, show: !isFII },
+      { label: 'Vacância', value: fundamentals.vacancia, isPercent: true, show: isFII },
     ];
 
     return (
       <View style={styles.fundamentalsCard}>
-        <Text style={styles.sectionTitle}>Fundamentos</Text>
+        <View style={styles.fundamentalsHeader}>
+          <Text style={styles.sectionTitle}>📊 Fundamentos</Text>
+          <Text style={styles.fundamentalsSubtitle}>
+            {isFII ? 'Indicadores do Fundo Imobiliário' : 'Indicadores Fundamentalistas'}
+          </Text>
+        </View>
         <View style={styles.fundamentalsGrid}>
           {fundamentalItems.map(item =>
             item.show !== false ? (
               <View key={item.label} style={styles.fundamentalItem}>
-                <Text style={styles.fundamentalLabel}>{item.label}</Text>
-                <Text style={styles.fundamentalValue}>{item.value || 'N/A'}</Text>
+                <View style={styles.fundamentalIcon}>
+                  <Text style={styles.fundamentalIconText}>
+                    {item.label === 'P/L' ? '💰' :
+                     item.label === 'P/VP' ? '📈' :
+                     item.label === 'DY' ? '💎' :
+                     item.label === 'ROE' ? '⚡' :
+                     item.label === 'Dív. Líq/EBITDA' ? '🏦' :
+                     item.label === 'Liq. Corrente' ? '💧' :
+                     item.label === 'Marg. Líquida' ? '📊' :
+                     item.label === 'Vacância' ? '🏢' : '📋'}
+                  </Text>
+                </View>
+                <View style={styles.fundamentalContent}>
+                  <Text style={styles.fundamentalLabel}>{item.label}</Text>
+                  <Text style={[styles.fundamentalValue, {
+                    color: getValueColor(item.label, item.value)
+                  }]}>
+                    {getFormattedValue(item.value, item.isPercent)}
+                  </Text>
+                </View>
               </View>
             ) : null
           )}
         </View>
       </View>
     );
-  };
-
-  // Importação corrigida
-  const marketService = {
-    getQuote: async (ticker, force = false) => {
-      // Simula a função que estava sendo usada antes
-      return fetchQuote({ ticker, type: asset.type });
-    }
   };
 
   return (
@@ -187,9 +233,26 @@ const AssetDetailScreen = ({ route, navigation }) => {
             <View style={styles.priceDivider} />
             <View style={styles.priceBox}>
               <Text style={styles.priceLabel}>Preço Atual</Text>
-              <Text style={[styles.price, { color: colors.primary }]}>
-                {formatCurrency(realAsset.currentPrice)}
-              </Text>
+              <View style={styles.currentPriceContainer}>
+                <Text style={[styles.price, { color: colors.primary }]}>
+                  {formatCurrency(realAsset.currentPrice)}
+                </Text>
+                {priceLoading ? (
+                  <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
+                ) : (
+                  realAsset.changePercent !== 0 && (
+                    <View style={[styles.changeIndicator, {
+                      backgroundColor: realAsset.changePercent >= 0 ? colors.success + '20' : colors.danger + '20',
+                    }]}>
+                      <Text style={[styles.changeText, {
+                        color: realAsset.changePercent >= 0 ? colors.success : colors.danger
+                      }]}>
+                        {realAsset.changePercent >= 0 ? '▲' : '▼'} {formatPercent(Math.abs(realAsset.changePercent))}
+                      </Text>
+                    </View>
+                  )
+                )}
+              </View>
             </View>
           </View>
 
@@ -202,36 +265,47 @@ const AssetDetailScreen = ({ route, navigation }) => {
 
         {/* Resumo de Lucro/Prejuízo */}
         <View style={[styles.summaryCard, {
-          backgroundColor: assetData.isPositive ? colors.success + '15' : colors.danger + '15',
+          backgroundColor: assetData.isPositive ? colors.success + '10' : colors.danger + '10',
           borderColor: assetData.isPositive ? colors.success : colors.danger,
         }]}>
-          <View style={styles.summaryRow}>
-            <View>
-              <Text style={styles.summaryLabel}>Investido</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(assetData.invested)}</Text>
-            </View>
-            <View style={styles.summarySeparator} />
-            <View>
-              <Text style={styles.summaryLabel}>Valor Atual</Text>
-              <Text style={styles.summaryValue}>{formatCurrency(assetData.current)}</Text>
+          <View style={styles.summaryHeader}>
+            <Text style={styles.summaryTitle}>Resumo do Investimento</Text>
+            <View style={[styles.profitIndicator, {
+              backgroundColor: assetData.isPositive ? colors.success : colors.danger,
+            }]}>
+              <Text style={styles.profitIndicatorText}>
+                {assetData.isPositive ? '📈' : '📉'} {assetData.isPositive ? 'Lucro' : 'Prejuízo'}
+              </Text>
             </View>
           </View>
-          
+
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Valor Investido</Text>
+              <Text style={styles.summaryValueLarge}>{formatCurrency(assetData.invested)}</Text>
+            </View>
+            <View style={styles.summarySeparator} />
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Valor Atual</Text>
+              <Text style={styles.summaryValueLarge}>{formatCurrency(assetData.current)}</Text>
+            </View>
+          </View>
+
           <View style={styles.summaryDivider} />
 
           <View style={styles.summaryRow}>
-            <View>
+            <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Lucro/Prejuízo</Text>
-              <Text style={[styles.summaryValue, {
+              <Text style={[styles.summaryValueLarge, {
                 color: assetData.isPositive ? colors.success : colors.danger
               }]}>
                 {formatCurrency(Math.abs(assetData.profit))}
               </Text>
             </View>
             <View style={styles.summarySeparator} />
-            <View>
+            <View style={styles.summaryItem}>
               <Text style={styles.summaryLabel}>Percentual</Text>
-              <Text style={[styles.summaryValue, {
+              <Text style={[styles.summaryValueLarge, {
                 color: assetData.isPositive ? colors.success : colors.danger
               }]}>
                 {assetData.isPositive ? '▲' : '▼'} {formatPercent(Math.abs(assetData.profitPercent))}
@@ -287,52 +361,75 @@ const AssetDetailScreen = ({ route, navigation }) => {
 
         {/* Botões de Ação */}
         <View style={styles.actionsContainer}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.buyButton]}
-            onPress={handleBuy}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.actionButtonIcon}>💰</Text>
-                <Text style={styles.actionButtonText}>Comprar</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <View style={styles.primaryActionsRow}>
+            <TouchableOpacity
+              style={[styles.primaryActionButton, styles.buyButton]}
+              onPress={handleBuy}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <View style={styles.buttonContent}>
+                  <View style={styles.buttonIconContainer}>
+                    <Text style={styles.actionButtonIcon}>💰</Text>
+                  </View>
+                  <View style={styles.buttonTextContainer}>
+                    <Text style={styles.primaryButtonText}>Comprar</Text>
+                    <Text style={styles.buttonSubtitle}>Adicionar ao portfólio</Text>
+                  </View>
+                </View>
+              )}
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.sellButton]}
-            onPress={handleSell}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.actionButtonIcon}>💸</Text>
-                <Text style={styles.actionButtonText}>Vender</Text>
-              </>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.primaryActionButton, styles.sellButton]}
+              onPress={handleSell}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <View style={styles.buttonContent}>
+                  <View style={styles.buttonIconContainer}>
+                    <Text style={styles.actionButtonIcon}>💸</Text>
+                  </View>
+                  <View style={styles.buttonTextContainer}>
+                    <Text style={styles.primaryButtonText}>Vender</Text>
+                    <Text style={styles.buttonSubtitle}>Remover do portfólio</Text>
+                  </View>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity
-            style={[styles.actionButton, styles.watchlistButton]}
-            onPress={handleAddToWatchlist}
-            disabled={loading}
-          >
-            <Text style={styles.actionButtonIcon}>⭐</Text>
-            <Text style={styles.actionButtonText}>Favoritar</Text>
-          </TouchableOpacity>
+          <View style={styles.secondaryActionsRow}>
+            <TouchableOpacity
+              style={[styles.secondaryActionButton, styles.watchlistButton]}
+              onPress={handleAddToWatchlist}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <View style={styles.secondaryButtonContent}>
+                <Text style={styles.secondaryButtonIcon}>⭐</Text>
+                <Text style={styles.secondaryButtonText}>Favoritar</Text>
+              </View>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.alertButton}
-            onPress={() => setAlertModalVisible(true)}
-            disabled={loading}
-          >
-            <Text style={styles.alertButtonText}>🔔 Criar Alerta</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.secondaryActionButton, styles.alertButton]}
+              onPress={() => setAlertModalVisible(true)}
+              disabled={loading}
+              activeOpacity={0.7}
+            >
+              <View style={styles.secondaryButtonContent}>
+                <Text style={styles.secondaryButtonIcon}>🔔</Text>
+                <Text style={styles.secondaryButtonText}>Criar Alerta</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={{ height: 32 }} />
@@ -355,7 +452,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   header: {
     marginBottom: 16,
@@ -376,6 +474,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    // Shadow for Android
+    elevation: 6,
   },
   assetHeader: {
     flexDirection: 'row',
@@ -383,16 +488,23 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.border,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: colors.primary + '20',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
+    // Shadow for iOS
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    // Shadow for Android
+    elevation: 4,
   },
   icon: {
-    fontSize: 32,
+    fontSize: 36,
   },
   assetDetails: {
     flex: 1,
@@ -432,6 +544,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  currentPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  changeIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  changeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
   priceDivider: {
     width: 1,
     backgroundColor: colors.border,
@@ -455,24 +582,63 @@ const styles = StyleSheet.create({
   summaryCard: {
     backgroundColor: colors.surface,
     borderRadius: 16,
-    padding: 16,
+    padding: 20,
     marginBottom: 16,
-    borderWidth: 1.5,
+    borderWidth: 2,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    // Shadow for Android
+    elevation: 6,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  summaryTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  profitIndicator: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  profitIndicatorText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '600',
   },
   summaryRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  summaryItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
   summaryLabel: {
     color: colors.textSecondary,
     fontSize: 12,
-    marginBottom: 6,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   summaryValue: {
     color: colors.text,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  summaryValueLarge: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   summarySeparator: {
     width: 1,
@@ -510,17 +676,90 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   actionsContainer: {
-    flexDirection: 'row',
     marginTop: 24,
     marginBottom: 16,
-    gap: 8,
   },
-  actionButton: {
+  primaryActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  primaryActionButton: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    // Shadow for Android
+    elevation: 6,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  buttonIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  buttonTextContainer: {
+    flex: 1,
+  },
+  primaryButtonText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  buttonSubtitle: {
+    color: colors.text + 'CC',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  secondaryActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  secondaryActionButton: {
     flex: 1,
     paddingVertical: 14,
+    paddingHorizontal: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    // Shadow for Android
+    elevation: 3,
+  },
+  secondaryButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  secondaryButtonIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  secondaryButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
   },
   buyButton: {
     backgroundColor: colors.success,
@@ -529,30 +768,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.danger,
   },
   watchlistButton: {
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.secondary + '20',
+    borderColor: colors.secondary,
   },
   alertButton: {
-    flex: 1,
-    padding: 16,
     backgroundColor: colors.warning + '20',
-    borderRadius: 12,
-    borderWidth: 1,
     borderColor: colors.warning,
-    alignItems: 'center',
-  },
-  alertButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.warning,
   },
   actionButtonIcon: {
-    fontSize: 18,
-    marginBottom: 4,
-  },
-  actionButtonText: {
-    color: colors.text,
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 20,
   },
   sectionTitle: {
     fontSize: 20,
@@ -567,6 +791,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    // Shadow for Android
+    elevation: 6,
+  },
+  fundamentalsHeader: {
+    marginBottom: 20,
+  },
+  fundamentalsSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 4,
   },
   fundamentalsGrid: {
     flexDirection: 'row',
@@ -575,9 +815,26 @@ const styles = StyleSheet.create({
   },
   fundamentalItem: {
     width: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+  },
+  fundamentalIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  fundamentalIconText: {
+    fontSize: 18,
+  },
+  fundamentalContent: {
+    flex: 1,
   },
   fundamentalLabel: {
     color: colors.textSecondary,
