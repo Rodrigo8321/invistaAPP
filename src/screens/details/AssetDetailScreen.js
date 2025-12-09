@@ -4,54 +4,33 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Alert,
+  RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useAssetPrice } from '../../services/useAssetPrice';
 import { colors } from '../../styles/colors';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
-import { fetchQuote } from '../../services/marketService';
 import PriceChart from '../../components/common/PriceChart';
 import CreateAlertModal from '../../components/alerts/CreateAlertModal';
 
 const AssetDetailScreen = ({ route, navigation }) => {
   const { asset } = route.params;
+
+  // Usando o custom hook para gerenciar o estado do preço
+  const { realAsset, priceLoading, priceError, refreshPrice } = useAssetPrice(asset);
+
   const [chartPeriod, setChartPeriod] = useState(30);
-  const [loading, setLoading] = useState(true);
-  const [priceLoading, setPriceLoading] = useState(false);
-  const [realAsset, setRealAsset] = useState(asset);
   const [alertModalVisible, setAlertModalVisible] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Carregar preço real ao montar
-  useEffect(() => {
-    loadRealPrice();
-  }, [asset.ticker]);
-
-  const loadRealPrice = async () => {
-    setPriceLoading(true);
-    try {
-      console.log(`📊 Carregando preço real para ${asset.ticker}...`);
-
-      const quote = await fetchQuote(asset);
-
-      if (quote) {
-        console.log(`✅ Preço real para ${asset.ticker}: ${quote.price}`);
-        setRealAsset(prev => ({
-          ...prev,
-          currentPrice: quote.price,
-          change: quote.change || 0,
-          changePercent: quote.changePercent || 0,
-          fundamentals: prev.fundamentals, // Mantém os fundamentos originais
-        }));
-      }
-    } catch (error) {
-      console.error(`❌ Erro ao carregar preço para ${asset.ticker}, usando dados locais. Erro:`, error.message);
-      // Em caso de erro, não alteramos o estado, mantendo os dados que já temos.
-    } finally {
-      setPriceLoading(false);
-    }
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshPrice();
+    setIsRefreshing(false);
   };
 
   // Calcular dados do ativo
@@ -76,23 +55,15 @@ const AssetDetailScreen = ({ route, navigation }) => {
   }, [realAsset]);
 
   const handleBuy = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert('✅ Sucesso', `Compra de ${realAsset.ticker} simulada!\n\nFuncionalidade em desenvolvimento`, [
-        { text: 'OK' }
-      ]);
-    }, 1000);
+    Alert.alert('Em Desenvolvimento', `A funcionalidade de compra para ${realAsset.ticker} ainda não foi implementada.`, [
+      { text: 'OK' }
+    ]);
   };
 
   const handleSell = () => {
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      Alert.alert('✅ Sucesso', `Venda de ${realAsset.ticker} simulada!\n\nFuncionalidade em desenvolvimento`, [
-        { text: 'OK' }
-      ]);
-    }, 1000);
+    Alert.alert('Em Desenvolvimento', `A funcionalidade de venda para ${realAsset.ticker} ainda não foi implementada.`, [
+      { text: 'OK' }
+    ]);
   };
 
   const handleAddToWatchlist = () => {
@@ -198,6 +169,13 @@ const AssetDetailScreen = ({ route, navigation }) => {
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
       >
         {/* Header */}
         <View style={styles.header}>
@@ -239,6 +217,10 @@ const AssetDetailScreen = ({ route, navigation }) => {
                 </Text>
                 {priceLoading ? (
                   <ActivityIndicator size="small" color={colors.primary} style={{ marginLeft: 8 }} />
+                ) : priceError ? (
+                  <View style={styles.errorIndicator}>
+                    <Text style={styles.errorText}>⚠️</Text>
+                  </View>
                 ) : (
                   realAsset.changePercent !== 0 && (
                     <View style={[styles.changeIndicator, {
@@ -255,6 +237,10 @@ const AssetDetailScreen = ({ route, navigation }) => {
               </View>
             </View>
           </View>
+
+          {priceError && (
+            <Text style={styles.priceErrorText}>{priceError}</Text>
+          )}
 
           {/* Quantidade */}
           <View style={styles.quantityContainer}>
@@ -365,10 +351,10 @@ const AssetDetailScreen = ({ route, navigation }) => {
             <TouchableOpacity
               style={[styles.primaryActionButton, styles.buyButton]}
               onPress={handleBuy}
-              disabled={loading}
+              disabled={priceLoading}
               activeOpacity={0.8}
             >
-              {loading ? (
+              {priceLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <View style={styles.buttonContent}>
@@ -386,10 +372,10 @@ const AssetDetailScreen = ({ route, navigation }) => {
             <TouchableOpacity
               style={[styles.primaryActionButton, styles.sellButton]}
               onPress={handleSell}
-              disabled={loading}
+              disabled={priceLoading}
               activeOpacity={0.8}
             >
-              {loading ? (
+              {priceLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <View style={styles.buttonContent}>
@@ -409,7 +395,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
             <TouchableOpacity
               style={[styles.secondaryActionButton, styles.watchlistButton]}
               onPress={handleAddToWatchlist}
-              disabled={loading}
+              disabled={priceLoading}
               activeOpacity={0.7}
             >
               <View style={styles.secondaryButtonContent}>
@@ -421,7 +407,7 @@ const AssetDetailScreen = ({ route, navigation }) => {
             <TouchableOpacity
               style={[styles.secondaryActionButton, styles.alertButton]}
               onPress={() => setAlertModalVisible(true)}
-              disabled={loading}
+              disabled={priceLoading}
               activeOpacity={0.7}
             >
               <View style={styles.secondaryButtonContent}>
@@ -558,6 +544,23 @@ const styles = StyleSheet.create({
   changeText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  errorIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+    backgroundColor: colors.warning + '30',
+  },
+  errorText: {
+    fontSize: 12,
+    color: colors.warning,
+  },
+  priceErrorText: {
+    color: colors.warning,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
   priceDivider: {
     width: 1,

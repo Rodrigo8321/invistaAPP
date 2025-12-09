@@ -16,15 +16,15 @@ export const fetchQuote = async (tickers) => {
   }
 
   const endpoint = `/quote/${tickers}`;
-  const params = {
-    token: brapi.bearerToken,
-    range: '1d', // Garante que estamos pegando o dado mais recente
-  };
-
-  const url = buildURL(brapi.baseUrl, endpoint, params);
+  const url = buildURL(brapi.baseUrl, endpoint, { range: '1d' });
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${brapi.apiKey}`, // Usa a chave da configuração
+      },
+    });
 
     if (!response.ok) {
       logAPICall('brapi', endpoint, `Error - ${response.status}`);

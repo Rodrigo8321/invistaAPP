@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_CONFIG, buildURL, logAPICall } from '../config/apiConfig';
-import { BRAPI_BEARER_TOKEN } from '@env';
+import { BRAPI_API_KEY } from '@env';
 import Brapi from 'brapi';
 
 // ========== CACHE MANAGER ==========
@@ -60,7 +60,12 @@ const getBrapiClient = () => {
   if (!brapiClient) {
     // Inicializa o cliente apenas na primeira vez que for usado.
     // Isso garante que a variável de ambiente já foi carregada.
-    brapiClient = new Brapi({ apiKey: BRAPI_BEARER_TOKEN });
+    console.log('[DEBUG] Initializing Brapi Client...');
+    console.log(`[DEBUG] Token loaded: ${
+      BRAPI_API_KEY ? `...${BRAPI_API_KEY.slice(-4)}` : 'Not Found'
+    }`);
+    brapiClient = new Brapi({ apiKey: BRAPI_API_KEY });
+
   }
   return brapiClient;
 };
