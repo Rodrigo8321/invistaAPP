@@ -1,4 +1,9 @@
-import { BRAPI_API_KEY } from '@env';  // ✅ Adicionar esta linha
+import {
+  BRAPI_API_KEY,
+  ALPHA_VANTAGE_API_KEY,
+  COINGECKO_API_KEY,
+  FMP_API_KEY,
+} from '@env';
 
 /**
  * Carrega as variáveis de ambiente. Em um ambiente React Native, isso geralmente é feito
@@ -9,7 +14,7 @@ export const API_CONFIG = {
   // ========== ALPHA VANTAGE (Stocks US) ==========
   alphaVantage: {
     // Ex: ALPHA_VANTAGE_API_KEY=JJ8R7MU3IJIGPLOY
-    apiKey: process.env.ALPHA_VANTAGE_API_KEY,
+    apiKey: ALPHA_VANTAGE_API_KEY,
     baseUrl: 'https://www.alphavantage.co/query',
     timeout: 10000, // 10 segundos
     rateLimit: {
@@ -21,7 +26,7 @@ export const API_CONFIG = {
   // ========== COINGECKO (Crypto) ==========
   coinGecko: {
     // Ex: COINGECKO_API_KEY=sua_chave_aqui
-    apiKey: process.env.COINGECKO_API_KEY, // Opcional, mas recomendado
+    apiKey: COINGECKO_API_KEY, // Opcional, mas recomendado
     baseUrl: 'https://api.coingecko.com/api/v3',
     timeout: 8000, // 8 segundos
     rateLimit: {
@@ -33,7 +38,7 @@ export const API_CONFIG = {
   // ========== BRAPI (Ativos BR) ==========
   brapi: {
     // Ex: BRAPI_API_KEY=seu_token_aqui
-    apiKey: BRAPI_API_KEY,  // ✅ Usar import direto, não process.env
+    apiKey: BRAPI_API_KEY,
     baseUrl: 'https://brapi.dev/api',
     timeout: 10000, // 10 segundos
     rateLimit: {
@@ -45,7 +50,7 @@ export const API_CONFIG = {
   // ========== FINANCIAL MODELING PREP (FMP - Stocks US Fallback) ==========
   financialModelingPrep: {
     // Ex: FMP_API_KEY=sua_chave_aqui
-    apiKey: process.env.FMP_API_KEY,
+    apiKey: FMP_API_KEY,
     baseUrl: 'https://financialmodelingprep.com/api/v3',
     timeout: 10000, // 10 segundos
     rateLimit: {
@@ -83,7 +88,7 @@ export const API_CONFIG = {
  * Helpers: Verificam se as chaves de API para serviços específicos foram definidas.
  * Isso evita que o app tente usar chaves de exemplo ou vazias.
  */
-export const isBrapiConfigured = () => !!API_CONFIG.brapi.bearerToken && API_CONFIG.brapi.bearerToken.length > 5;
+export const isBrapiConfigured = () => !!API_CONFIG.brapi.apiKey && API_CONFIG.brapi.apiKey.length > 5;
 
 export const isAlphaVantageConfigured = () => !!API_CONFIG.alphaVantage.apiKey;
 
