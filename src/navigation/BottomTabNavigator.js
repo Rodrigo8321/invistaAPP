@@ -5,8 +5,6 @@ import { colors } from '../styles/colors';
 
 import DashboardScreen from '../screens/main/DashboardScreen';
 import PortfolioScreen from '../screens/main/PortfolioScreen';
-import PortfolioManagementScreen from '../screens/main/PortfolioManagementScreen';
-import WatchlistScreen from '../screens/main/WatchlistScreen';
 import TransactionHistoryScreen from '../screens/main/TransactionHistoryScreen'; // ← ADICIONAR
 import AnalysisScreen from '../screens/main/AnalysisScreen';
 import AlertsScreen from '../screens/main/AlertsScreen';
@@ -19,10 +17,8 @@ const TabIcon = ({ name, focused }) => {
   const icons = {
     Dashboard: { default: '📊', focused: '📈' },
     Portfolio: { default: '💼', focused: '💰' },
-    Watchlist: { default: '⭐', focused: '🌟' },
     Transactions: { default: '📋', focused: '📝' },
     AssetAnalysis: { default: '🔍', focused: '🔎' },
-    PortfolioManagement: { default: '📊', focused: '📈' },
     Alerts: { default: '🔔', focused: '🔕' },
     Settings: { default: '⚙️', focused: '⚙' },
   };
@@ -77,12 +73,6 @@ export const BottomTabNavigator = () => {
       />
 
       <Tab.Screen
-        name="Watchlist"
-        component={WatchlistScreen}
-        options={{ tabBarLabel: 'Favoritos' }}
-      />
-
-      <Tab.Screen
         name="Transactions"
         component={TransactionHistoryScreen}
         options={{ tabBarLabel: 'Transações' }}
@@ -92,12 +82,6 @@ export const BottomTabNavigator = () => {
         name="AssetAnalysis"
         component={AnalysisScreen}
         options={{ tabBarLabel: 'Análise' }}
-      />
-
-      <Tab.Screen
-        name="PortfolioManagement"
-        component={PortfolioManagementScreen}
-        options={{ tabBarLabel: 'Gestão de Portfólio' }}
       />
 
       <Tab.Screen

@@ -103,11 +103,11 @@ const WatchlistScreen = ({ navigation }) => {
   // Calcular totais
   const totals = useMemo(() => {
     const invested = filteredWatchlist.reduce(
-      (sum, asset) => sum + asset.quantity * asset.avgPrice,
+      (sum, asset) => sum + (asset.quantity || 0) * (asset.averagePrice || 0),
       0
     );
     const current = filteredWatchlist.reduce(
-      (sum, asset) => sum + asset.quantity * asset.currentPrice,
+      (sum, asset) => sum + (asset.quantity || 0) * (asset.currentPrice || 0),
       0
     );
     const profit = current - invested;

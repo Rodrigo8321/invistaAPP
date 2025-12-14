@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TRANSACTIONS_KEY = '@InvestPro:transactions';
+const CLEANUP_FLAG_KEY = '@InvestPro:transactionsCleaned';
 
 export const transactionService = {
   /**
@@ -26,11 +27,26 @@ export const transactionService = {
     try {
       const transactions = await this.getTransactions();
 
+      // Cria uma cópia da transação para processamento
+      const processedTransaction = { ...transaction };
+
+      // Converte o preço unitário para número, tratando vírgulas e pontos.
+      if (processedTransaction.unitPrice && typeof processedTransaction.unitPrice === 'string') {
+        const priceString = processedTransaction.unitPrice.replace(',', '.');
+        processedTransaction.unitPrice = parseFloat(priceString);
+      }
+
+      // Faz o mesmo para a quantidade, por segurança.
+      if (processedTransaction.quantity && typeof processedTransaction.quantity === 'string') {
+        const quantityString = processedTransaction.quantity.replace(',', '.');
+        processedTransaction.quantity = parseFloat(quantityString);
+      }
+
       // Gera ID único
       const newTransaction = {
         id: Date.now().toString(),
-        ...transaction,
-        date: transaction.date || new Date().toISOString(),
+        ...processedTransaction,
+        date: processedTransaction.date || new Date().toISOString(),
       };
 
       transactions.push(newTransaction);
@@ -40,6 +56,22 @@ export const transactionService = {
       return true;
     } catch (error) {
       console.error('Erro ao adicionar transação:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Salva um array de transações, substituindo as existentes.
+   * @param {Array} transactions - O array de transações a ser salvo.
+   * @returns {Promise<boolean>} true se salvo com sucesso.
+   */
+  async saveTransactions(transactions) {
+    try {
+      await AsyncStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
+      console.log(`💾 ${transactions.length} transações salvas.`);
+      return true;
+    } catch (error) {
+      console.error('Erro ao salvar transações:', error);
       return false;
     }
   },
@@ -115,6 +147,7 @@ export const transactionService = {
     let totalBought = 0;
     let totalSold = 0;
     let totalProfit = 0;
+    let realizedProfitFromSales = 0; // ✅ ADICIONADO: Rastreia o lucro apenas das vendas
 
     transactions.forEach(transaction => {
       const total = transaction.quantity * transaction.unitPrice;
@@ -123,9 +156,15 @@ export const transactionService = {
         totalBought += total;
       } else if (transaction.type === 'Venda') {
         totalSold += total;
-        totalProfit += transaction.profit || 0;
+        realizedProfitFromSales += transaction.profit || 0; // ✅ ADICIONADO: Acumula o lucro das vendas
       }
     });
+
+    // ✅ CORREÇÃO: O lucro total agora é a soma do lucro realizado com as vendas
+    // mais a diferença entre o valor atual e o custo dos ativos restantes.
+    // Esta lógica foi movida para as telas (Dashboard/Portfolio) que têm
+    // acesso aos preços atuais para um cálculo mais preciso.
+    totalProfit = realizedProfitFromSales;
 
     const profitPercent = totalBought > 0 ? (totalProfit / totalBought) * 100 : 0;
 
@@ -148,13 +187,18 @@ export const transactionService = {
     // Ordena as transações por data para garantir a ordem correta dos cálculos
     const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
 
+    // Adiciona log para depurar tickers com espaços extras
+    console.log('🔍 Símbolos originais nas transações:', sortedTransactions.map(t => `"${t.ticker}"`));
+
     sortedTransactions.forEach(tx => {
-      if (!portfolioMap.has(tx.ticker)) {
+      // Limpa o ticker para remover espaços e garantir consistência
+      const cleanTicker = tx.ticker.trim().toUpperCase();
+      if (!portfolioMap.has(cleanTicker)) {
         // Se o ativo não existe no mapa, inicializa com dados da primeira transação
         // Isso é importante para carregar metadados como nome, tipo, setor, etc.
-        portfolioMap.set(tx.ticker, {
-          id: tx.ticker, // Usar ticker como ID único para o ativo no portfólio
-          ticker: tx.ticker,
+        portfolioMap.set(cleanTicker, {
+          id: cleanTicker, // Usar ticker como ID único para o ativo no portfólio
+          ticker: cleanTicker,
           name: tx.name,
           type: tx.typeAsset || 'Ação', // Garante que o tipo nunca seja indefinido
           sector: tx.sector,
@@ -167,7 +211,7 @@ export const transactionService = {
         });
       }
 
-      const asset = portfolioMap.get(tx.ticker);
+      const asset = portfolioMap.get(cleanTicker);
 
       if (tx.type === 'Compra') {
         const newTotalInvested = asset.totalInvested + (tx.quantity * tx.unitPrice);
@@ -176,8 +220,11 @@ export const transactionService = {
         asset.totalInvested = newTotalInvested;
         asset.averagePrice = newQuantity > 0 ? newTotalInvested / newQuantity : 0;
       } else if (tx.type === 'Venda') {
+        // ✅ CORREÇÃO: O custo das ações vendidas deve ser baseado no preço médio de compra,
+        // e não no preço de venda. Isso garante que o `totalInvested` reflita o custo
+        // dos ativos que ainda estão na carteira.
         const costOfSoldShares = tx.quantity * asset.averagePrice;
-        asset.totalInvested -= costOfSoldShares;
+        asset.totalInvested = Math.max(0, asset.totalInvested - costOfSoldShares); // Garante que não fique negativo
         asset.quantity -= tx.quantity;
 
         if (asset.quantity <= 0) {
@@ -265,6 +312,28 @@ export const transactionService = {
       return true;
     } catch (error) {
       console.error('Erro ao limpar transações:', error);
+      return false;
+    }
+  },
+
+  /**
+   * Marca que a limpeza inicial de transações foi concluída.
+   */
+  async markAsCleaned() {
+    try {
+      await AsyncStorage.setItem(CLEANUP_FLAG_KEY, 'true');
+    } catch (error) {
+      console.error('Erro ao marcar flag de limpeza:', error);
+    }
+  },
+
+  /**
+   * Verifica se a limpeza inicial já foi executada.
+   */
+  async hasBeenCleaned() {
+    try {
+      return (await AsyncStorage.getItem(CLEANUP_FLAG_KEY)) === 'true';
+    } catch (error) {
       return false;
     }
   },

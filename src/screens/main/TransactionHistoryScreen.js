@@ -86,6 +86,54 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
     );
   };
 
+  const handleRemoveAsset = async (ticker) => {
+    Alert.alert(
+      '⚠️ Remover Ativo Permanentemente',
+      `Você tem certeza que deseja remover o ativo "${ticker}" e TODAS as suas transações? Esta ação não pode ser desfeita.`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Remover Ativo',
+          onPress: async () => {
+            try {
+              await transactionService.removeAssetByTicker(ticker);
+              await onRefresh(); // Recarrega transações e portfólio
+              Alert.alert('✅ Sucesso', `Ativo ${ticker} foi removido.`);
+            } catch (error) {
+              Alert.alert('Erro', `Não foi possível remover o ativo ${ticker}.`);
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
+  const handleOpenAddMenu = () => {
+    Alert.alert(
+      'Nova Operação',
+      'O que você gostaria de registrar?',
+      [
+        {
+          text: 'Adicionar Novo Ativo',
+          onPress: () => setIsAddAssetModalVisible(true),
+        },
+        {
+          text: 'Registrar Compra/Venda',
+          onPress: () => setIsTransactionModalVisible(true),
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const handleAddAsset = async (newAsset) => {
     try {
       await addAsset(newAsset);
@@ -139,21 +187,13 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
 
       {/* Botões de Ação - Movidos para fora da condição para estarem sempre visíveis */}
       <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity
-          style={[styles.newButton, { backgroundColor: colors.success }]}
-          onPress={() => setIsAddAssetModalVisible(true)}
-        >
-          <Text style={styles.newButtonIcon}>➕</Text>
-          <Text style={styles.newButtonText}>Adicionar Novo Ativo</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.newButton, { backgroundColor: colors.primary, marginTop: 8 }]}
-          onPress={() => setIsTransactionModalVisible(true)}
-        >
-          <Text style={styles.newButtonIcon}>🔄</Text>
-          <Text style={styles.newButtonText}>Registrar Compra/Venda</Text>
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.newButton, { backgroundColor: colors.primary }]}
+        onPress={handleOpenAddMenu}
+      >
+        <Text style={styles.newButtonIcon}>➕</Text>
+        <Text style={styles.newButtonText}>Nova Operação</Text>
+      </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -301,6 +341,7 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
                       key={transaction.id}
                       transaction={transaction}
                       onDelete={handleDeleteTransaction}
+                      onRemoveAsset={handleRemoveAsset}
                     />
                   ))
                 )}

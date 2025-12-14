@@ -79,16 +79,20 @@ const getBrapiClient = () => {
 const fetchBrapiQuote = async (ticker) => {
   try {
     console.log(`🇧🇷 Fetching Brapi: ${ticker}...`);
-
+    
     // Utiliza a SDK oficial da Brapi através do getter
     const client = getBrapiClient();
     
     // ✅ Log do token para debug
     console.log('[DEBUG] Token being used for request:', BRAPI_API_KEY ? `...${BRAPI_API_KEY.slice(-4)}` : 'UNDEFINED');
-    
+
     const json = await client.quote.retrieve(ticker);
 
+    // ✅ ADICIONAR - Log completo da resposta
+    console.log(`[DEBUG] Raw response for ${ticker}:`, JSON.stringify(json, null, 2));
+
     if (!json.results || json.results.length === 0) {
+      console.error(`❌ No results for ${ticker}. Response:`, json);
       throw new Error('No data from Brapi');
     }
 
@@ -96,26 +100,45 @@ const fetchBrapiQuote = async (ticker) => {
     // Se o token for inválido, a SDK lançará um erro que será capturado pelo catch.
     const quote = json.results[0];
 
+    // ✅ ADICIONAR - Log do quote individual
+    console.log(`[DEBUG] Quote data for ${ticker}:`, {
+      symbol: quote.symbol,
+      regularMarketPrice: quote.regularMarketPrice,
+      regularMarketPreviousClose: quote.regularMarketPreviousClose,
+    });
+
     logAPICall('Brapi', ticker, 'SUCCESS');
 
-    return {
+    const result = {
       price: quote.regularMarketPrice || quote.regularMarketPreviousClose,
       change: quote.regularMarketChange || 0,
       changePercent: quote.regularMarketChangePercent || 0,
       volume: quote.regularMarketVolume || 0,
       marketCap: quote.marketCap,
-      high: quote.regularMarketDayHigh,
-      low: quote.regularMarketDayLow,
-      open: quote.regularMarketOpen,
-      previousClose: quote.regularMarketPreviousClose,
+      high: quote.regularMarketDayHigh, // Corrigido
+      low: quote.regularMarketDayLow, // Corrigido
+      open: quote.regularMarketOpen, // Corrigido
+      previousClose: quote.regularMarketPreviousClose, // Corrigido
       updatedAt: new Date().toISOString(),
     };
+
+    // ✅ ADICIONAR - Log do resultado final
+    console.log(`✅ Formatted result for ${ticker}:`, result);
+
+    return result;
   } catch (error) {
     const isNotFound = error.message.includes('404');
     const isUnauthorized = error.message.includes('401');
 
     const errorMessage = isUnauthorized ? 'ERROR: Invalid Token' : `ERROR: ${error.message}`;
     logAPICall('Brapi', ticker, isNotFound ? `WARN: Ticker not found` : errorMessage);
+
+    // ✅ ADICIONAR - Log detalhado do erro
+    console.error(`❌ Error fetching ${ticker}:`, {
+      message: error.message,
+      isNotFound,
+      isUnauthorized,
+    });
 
     throw error;
   }
@@ -385,8 +408,11 @@ export const clearSearchCache = async () => {
 // ========== FIND TICKER FUNCTION (EXPERIMENTAL) ==========
 export const findTicker = async (ticker) => {
   try {
-    const url = `${API_CONFIG.brapi.baseUrl}/quote/list?search=${ticker}`;
-    console.log(`[DEBUG] Searching for ticker: ${ticker}`);
+    // Normaliza o ticker para maiúsculas para garantir consistência na busca
+    const searchTerm = ticker.toUpperCase();
+
+    const url = `${API_CONFIG.brapi.baseUrl}/quote/list?search=${searchTerm}`;
+    console.log(`[DEBUG] Searching for ticker: ${searchTerm}`);
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -396,7 +422,7 @@ export const findTicker = async (ticker) => {
       },
     });
     const json = await response.json();
-    console.log(`[DEBUG] Ticker search result for "${ticker}":`, JSON.stringify(json, null, 2));
+    console.log(`[DEBUG] Ticker search result for "${searchTerm}":`, JSON.stringify(json, null, 2));
     return json;
   } catch (error) {
     console.error(`[DEBUG] Error in findTicker for "${ticker}":`, error.message);

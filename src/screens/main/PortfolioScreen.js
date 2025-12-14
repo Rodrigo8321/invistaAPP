@@ -14,20 +14,19 @@ import { colors } from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { usePortfolio } from '../../contexts/PortfolioContext';
-import { fetchExchangeRate, fetchQuote } from '../../services/marketService'; // 1. Importar fetchQuote
-import AddAssetModal from '../../components/transactions/AddAssetModal';
+import { fetchExchangeRate, fetchQuote } from '../../services/marketService';
+import AssetCard from '../../components/AssetCard';
 
 const { width } = Dimensions.get('window');
 
 const PortfolioScreen = ({ navigation }) => {
-  const { portfolio, loading: portfolioLoading, error: portfolioError, addAsset } = usePortfolio();
+  const { portfolio, loading: portfolioLoading, error: portfolioError } = usePortfolio();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState('all'); // all, Ação, FII, Stock, REIT, ETF, Crypto
   const [sortBy, setSortBy] = useState('profit'); // profit, name, value
   const [refreshing, setRefreshing] = useState(false);
   const [realPrices, setRealPrices] = useState({});
   const [exchangeRate, setExchangeRate] = useState(5.0);
-  const [isAddModalVisible, setIsAddModalVisible] = useState(false);
 
   // 2. Renomear loading para evitar conflito e controlar estado local
   const [isFetchingPrices, setIsFetchingPrices] = useState(true);
@@ -76,22 +75,14 @@ const PortfolioScreen = ({ navigation }) => {
     loadRealData(false);
   };
 
-  const handleAddAsset = async (newAsset) => {
-    try {
-      await addAsset(newAsset);
-      setIsAddModalVisible(false);
-      onRefresh();
-    } catch (error) {
-      console.error('Erro ao adicionar ativo:', error);
-    }
-  };
-
   const assetsWithRealPrices = useMemo(() => {
     return portfolio.map((asset) => {
       const realPrice = realPrices[asset.ticker];
       const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
       const priceInBRL = asset.currency === 'USD' ? currentPrice * exchangeRate : currentPrice;
-      const invested = asset.averagePrice * asset.quantity;
+      // ✅ CORREÇÃO: Usar o `totalInvested` que já foi calculado pelo serviço,
+      // em vez de recalcular aqui. Isso garante a precisão dos valores.
+      const invested = asset.totalInvested || 0;
       const current = priceInBRL * asset.quantity;
       const profit = current - invested;
       const profitPercent = invested !== 0 ? (profit / invested) * 100 : 0;
@@ -172,9 +163,9 @@ const PortfolioScreen = ({ navigation }) => {
             <Text style={styles.title}>Portfólio</Text>
             <Text style={styles.subtitle}>{stats.count} ativos</Text>
           </View>
-          <TouchableOpacity style={styles.addButton} onPress={() => setIsAddModalVisible(true)}>
-            <Text style={styles.addButtonText}>+ Adicionar</Text>
-          </TouchableOpacity>
+          {/* O botão de adicionar foi removido conforme solicitado.
+              A funcionalidade agora está centralizada na tela de Histórico.
+          */}
         </View>
 
         {isFetchingPrices && <ActivityIndicator style={{ marginVertical: 10 }} color={colors.primary} />}
@@ -301,55 +292,19 @@ const PortfolioScreen = ({ navigation }) => {
               <Text style={styles.emptyStateSubtext}>Tente ajustar os filtros</Text>
             </View>
           ) : (
-            filteredAssets.map((asset) => (
-              <TouchableOpacity
-                key={asset.id}
-                style={styles.assetCard}
-                onPress={() => navigation.navigate('AssetDetail', { asset })}
-                activeOpacity={0.7}
-              >
-                <View style={styles.assetCardLeft}>
-                  <View style={styles.assetIcon}>
-                    <Text style={styles.assetIconText}>{asset.country}</Text>
-                  </View>
-                  <View style={styles.assetInfo}>
-                    <View style={styles.assetTitleRow}>
-                      <Text style={styles.assetTicker}>{asset.ticker}</Text>
-                      {asset.isMock && <Text style={styles.mockBadge}>📍</Text>}
-                    </View>
-                    <Text style={styles.assetName} numberOfLines={1}>{asset.name}</Text>
-                    <Text style={styles.assetType}>{asset.type} • {asset.sector}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.assetCardRight}>
-                  <Text style={styles.assetValue}>{formatCurrency(asset.current)}</Text>
-                  <Text style={styles.assetQuantity}>{asset.quantity} unidades • {formatCurrency(asset.currentPriceReal)}/unidade</Text>
-                  <View
-                    style={[
-                      styles.assetProfitBadge,
-                      { backgroundColor: asset.profit >= 0 ? colors.success + '15' : colors.danger + '15' },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.assetProfitText,
-                        { color: asset.profit >= 0 ? colors.success : colors.danger },
-                      ]}
-                    >
-                      {asset.profit >= 0 ? '+' : ''}
-                      {formatCurrency(asset.profit)} ({formatPercent(asset.profitPercent)})
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))
+            filteredAssets.map((asset) => {
+              const currentPrice = realPrices[asset.ticker]?.price || asset.currentPrice;
+              const priceInBRL = asset.currency === 'USD' ? (currentPrice || 0) * exchangeRate : currentPrice;
+              // A navegação foi movida para dentro do AssetCard, mas garantimos que ele receba os dados corretos.
+              // A rota correta 'AssetDetails' já está sendo usada pelo AssetCard.
+              // Nenhuma mudança é necessária aqui, pois o AssetCard já faz o trabalho certo.
+              return <AssetCard key={asset.id} holding={asset} currentPrice={priceInBRL || 0} />;
+            })
           )}
         </View>
 
         <View style={{ height: 30 }} />
       </ScrollView>
-      <AddAssetModal visible={isAddModalVisible} onClose={() => setIsAddModalVisible(false)} onAddAsset={handleAddAsset} />
     </SafeAreaView>
   );
 };

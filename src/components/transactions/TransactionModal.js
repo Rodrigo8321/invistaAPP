@@ -11,18 +11,20 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../../styles/colors';
 import { transactionService } from '../../services/transactionService';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const DATE_INPUT_FORMAT = /^\d{2}\/\d{2}\/\d{4}$/; // DD/MM/YYYY
 
 const parseDateInput = (input) => {
   const [day, month, year] = input.split('/');
-  if (!day || !month || !year) {
-    return null;
-  }
-  const date = new Date(`${year}-${month}-${day}T00:00:00`);
+  if (!day || !month || !year) return null;
+
+  // Mantém a hora e minuto atuais ao parsear a data do input de texto
+  const now = new Date();
+  const date = new Date(now);
+  date.setFullYear(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
   return isNaN(date.getTime()) ? null : date;
 };
 
@@ -42,6 +44,7 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded, ini
   const [dateInput, setDateInput] = useState(formatDateToInput(new Date()));
   const [loading, setLoading] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(true);
+  const [datePickerMode, setDatePickerMode] = useState('date');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const onChangeDate = (event, selectedDate) => {
@@ -49,8 +52,13 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded, ini
       setShowDatePicker(false);
     }
     if (selectedDate) {
-      setDate(selectedDate);
-      setDateInput(formatDateToInput(selectedDate));
+      if (datePickerMode === 'date') {
+        setDate(selectedDate);
+        setDatePickerMode('time'); // Abre o seletor de hora em seguida
+      } else {
+        setDate(selectedDate);
+        setDateInput(formatDateToInput(selectedDate));
+      }
     }
   };
 
@@ -261,22 +269,21 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded, ini
                       keyboardType="numeric"
                       maxLength={10}
                     />
+                    <TouchableOpacity onPress={() => { setDatePickerMode('date'); setShowDatePicker(true); }}>
+                      <Text style={styles.dateIcon}>📅</Text>
+                    </TouchableOpacity>
                   </View>
-                  {/*
-                  <TouchableOpacity onPress={() => setShowDatePicker(true)}>
-                    <Text style={styles.dateIcon}>📅</Text>
-                  </TouchableOpacity>
                   {showDatePicker && (
                     <DateTimePicker
                       testID="dateTimePicker"
                       value={date}
-                      mode="date"
-                      display="spinner"
+                      mode={datePickerMode}
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                       onChange={onChangeDate}
                       maximumDate={new Date()}
+                      is24Hour={true}
                     />
                   )}
-                  */}
                 </View>
 
                 <View style={styles.form}>

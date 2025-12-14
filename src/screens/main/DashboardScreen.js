@@ -121,7 +121,9 @@ const DashboardScreen = ({ navigation }) => {
       const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
       const priceInBRL = asset.currency === 'USD' ? currentPrice * exchangeRate : currentPrice;
 
-      const invested = asset.averagePrice * asset.quantity;
+      // ✅ CORREÇÃO: Usar o `totalInvested` que já foi calculado pelo serviço,
+      // em vez de recalcular aqui. Isso garante a precisão dos valores.
+      const invested = asset.totalInvested || 0;
       const current = priceInBRL * asset.quantity;
 
       totalInvested += invested;
@@ -385,7 +387,7 @@ const DashboardScreen = ({ navigation }) => {
                   <TouchableOpacity
                     key={asset.ticker}
                     style={styles.topCard}
-                    onPress={() => navigation.navigate('AssetDetail', { asset })}
+                    onPress={() => navigation.navigate('AssetDetails', { asset })}
                   >
                     <Text style={styles.topCardTicker}>{asset.ticker}</Text>
                     <Text numberOfLines={1} style={styles.topCardName}>{asset.name}</Text>
@@ -447,7 +449,7 @@ const DashboardScreen = ({ navigation }) => {
             <TouchableOpacity
               key={asset.id}
               style={styles.assetCard}
-              onPress={() => navigation.navigate('AssetDetail', { asset })}
+              onPress={() => navigation.navigate('AssetDetails', { asset })}
               activeOpacity={0.7}
             >
               <View style={styles.assetCardLeft}>
@@ -494,7 +496,7 @@ const DashboardScreen = ({ navigation }) => {
               <TouchableOpacity
                 key={asset.id}
                 style={styles.assetCard}
-                onPress={() => navigation.navigate('AssetDetail', { asset })}
+                onPress={() => navigation.navigate('AssetDetails', { asset })}
                 activeOpacity={0.7}
               >
                 <View style={styles.assetCardLeft}>
@@ -538,13 +540,6 @@ const DashboardScreen = ({ navigation }) => {
             >
               <Text style={styles.quickActionIcon}>📊</Text>
               <Text style={styles.quickActionText}>Gestão de Portfólio</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              onPress={() => navigation.navigate('Watchlist')}
-            >
-              <Text style={styles.quickActionIcon}>⭐</Text>
-              <Text style={styles.quickActionText}>Favoritos</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickActionCard}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomTabNavigator } from './BottomTabNavigator';
-import AssetDetailScreen from '../screens/details/AssetDetailScreen';
+import AssetDetailsScreen from '../screens/main/AssetDetailsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,8 +16,8 @@ export const AppNavigator = () => {
     >
       <Stack.Screen name="MainTabs" component={BottomTabNavigator} />
       <Stack.Screen 
-        name="AssetDetail" 
-        component={AssetDetailScreen}
+        name="AssetDetails" 
+        component={AssetDetailsScreen}
         options={{
           animationEnabled: true,
         }}

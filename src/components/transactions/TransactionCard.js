@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
 
-const TransactionCard = ({ transaction, onDelete }) => {
+const TransactionCard = ({ transaction, onDelete, onRemoveAsset }) => {
   const isCompra = transaction.type === 'Compra';
   const total = transaction.quantity * transaction.unitPrice;
   const profit = transaction.profit || 0;
@@ -40,12 +40,17 @@ const TransactionCard = ({ transaction, onDelete }) => {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => onDelete && onDelete(transaction.id)}
-        >
-          <Text style={styles.deleteIcon}>✕</Text>
-        </TouchableOpacity>
+        <View style={styles.actionsContainer}>
+          {/* Botão para deletar UMA transação */}
+          <TouchableOpacity onPress={() => onDelete(transaction.id)} style={styles.deleteButton}>
+            <Text style={styles.actionIcon}>🗑️</Text>
+          </TouchableOpacity>
+
+          {/* NOVO BOTÃO: Botão vermelho para remover o ATIVO INTEIRO */}
+          <TouchableOpacity onPress={() => onRemoveAsset(transaction.ticker)} style={styles.removeAssetButton}>
+            <Text style={styles.actionIcon}>🔥</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Ticker e Nome */}
@@ -136,13 +141,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  deleteButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.danger,
-    justifyContent: 'center',
+  actionsContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  removeAssetButton: {
+    backgroundColor: colors.danger + '20', // Fundo vermelho claro
+    padding: 8,
+    borderRadius: 20,
+    marginLeft: 8,
+  },
+  actionIcon: {
+    fontSize: 18,
   },
   deleteIcon: {
     color: '#ffffff',
