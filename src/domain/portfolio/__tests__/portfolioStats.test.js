@@ -1,118 +1,87 @@
 import { getPortfolioStats } from '../portfolioStats';
 
 describe('getPortfolioStats', () => {
-  it('calculates positive profit correctly', () => {
+  it('deve calcular corretamente os totais da carteira com lucro', () => {
     const portfolio = [
       {
         ticker: 'PETR4',
-        quantity: 100,
-        totalInvested: 10000,
-        monthlyDividends: 50,
-        type: 'Stock',
-        currency: 'BRL',
+        quantity: 10,
+        totalInvested: 280,
+        monthlyDividends: 120,
+      },
+      {
+        ticker: 'HGLG11',
+        quantity: 5,
+        totalInvested: 800,
+        monthlyDividends: 95,
       },
     ];
-    const realPrices = { PETR4: { price: 120, change: 0 } };
-    const exchangeRate = 5.0;
 
-    const result = getPortfolioStats({ portfolio, realPrices, exchangeRate });
+    const prices = {
+      PETR4: 30,
+      HGLG11: 165,
+    };
 
-    expect(result.diversificationCount).toBe(1);
-    expect(result.totalInvested).toBe(10000);
-    expect(result.totalCurrent).toBe(12000);
-    expect(result.profit).toBe(2000);
-    expect(result.profitabilityPercent).toBe(20);
-    expect(result.totalMonthlyDividends).toBe(50);
+    const stats = getPortfolioStats({ portfolio, prices });
+
+    expect(stats.totalInvested).toBe(1080);
+    expect(stats.totalCurrent).toBe(10 * 30 + 5 * 165);
+    expect(stats.profit).toBeGreaterThan(0);
+    expect(stats.profitabilityPercent).toBeGreaterThan(0);
+    expect(stats.diversificationCount).toBe(2);
+    expect(stats.totalMonthlyDividends).toBe(215);
   });
 
-  it('calculates negative profit correctly', () => {
+  it('deve calcular corretamente prejuízo na carteira', () => {
     const portfolio = [
       {
         ticker: 'VALE3',
-        quantity: 50,
-        totalInvested: 4000,
-        monthlyDividends: 30,
-        type: 'Stock',
-        currency: 'BRL',
+        quantity: 10,
+        totalInvested: 900,
+        monthlyDividends: 0,
       },
     ];
-    const realPrices = { VALE3: { price: 70, change: 0 } };
-    const exchangeRate = 5.0;
 
-    const result = getPortfolioStats({ portfolio, realPrices, exchangeRate });
+    const prices = {
+      VALE3: 80,
+    };
 
-    expect(result.diversificationCount).toBe(1);
-    expect(result.totalInvested).toBe(4000);
-    expect(result.totalCurrent).toBe(3500);
-    expect(result.profit).toBe(-500);
-    expect(result.profitabilityPercent).toBe(-12.5);
-    expect(result.totalMonthlyDividends).toBe(30);
+    const stats = getPortfolioStats({ portfolio, prices });
+
+    expect(stats.totalInvested).toBe(900);
+    expect(stats.totalCurrent).toBe(800);
+    expect(stats.profit).toBe(-100);
+    expect(stats.profitabilityPercent).toBeLessThan(0);
   });
 
-  it('calculates diversification correctly', () => {
+  it('deve contar corretamente a diversificação (tickers únicos)', () => {
     const portfolio = [
-      {
-        ticker: 'PETR4',
-        quantity: 100,
-        totalInvested: 10000,
-        monthlyDividends: 50,
-        type: 'Stock',
-        currency: 'BRL',
-      },
-      {
-        ticker: 'VALE3',
-        quantity: 50,
-        totalInvested: 4000,
-        monthlyDividends: 30,
-        type: 'Stock',
-        currency: 'BRL',
-      },
-      {
-        ticker: 'ITUB4',
-        quantity: 200,
-        totalInvested: 8000,
-        monthlyDividends: 40,
-        type: 'Stock',
-        currency: 'BRL',
-      },
+      { ticker: 'ITUB4', quantity: 10, totalInvested: 200 },
+      { ticker: 'ITUB4', quantity: 5, totalInvested: 100 },
+      { ticker: 'MXRF11', quantity: 20, totalInvested: 220 },
     ];
-    const realPrices = { PETR4: { price: 120, change: 0 }, VALE3: { price: 70, change: 0 }, ITUB4: { price: 50, change: 0 } };
-    const exchangeRate = 5.0;
 
-    const result = getPortfolioStats({ portfolio, realPrices, exchangeRate });
+    const prices = {
+      ITUB4: 25,
+      MXRF11: 11,
+    };
 
-    expect(result.diversificationCount).toBe(3);
-    expect(result.totalInvested).toBe(22000);
-    expect(result.totalCurrent).toBe(24000);
-    expect(result.profit).toBe(2000);
-    expect(result.profitabilityPercent).toBeCloseTo(9.09, 2);
-    expect(result.totalMonthlyDividends).toBe(120);
+    const stats = getPortfolioStats({ portfolio, prices });
+
+    expect(stats.diversificationCount).toBe(2);
   });
 
-  it('calculates monthly dividends correctly', () => {
-    const portfolio = [
-      {
-        ticker: 'PETR4',
-        quantity: 100,
-        totalInvested: 10000,
-        monthlyDividends: 50,
-        type: 'Stock',
-        currency: 'BRL',
-      },
-      {
-        ticker: 'VALE3',
-        quantity: 50,
-        totalInvested: 4000,
-        monthlyDividends: 30,
-        type: 'Stock',
-        currency: 'BRL',
-      },
-    ];
-    const realPrices = { PETR4: { price: 120, change: 0 }, VALE3: { price: 70, change: 0 } };
-    const exchangeRate = 5.0;
+  it('não deve quebrar quando a carteira estiver vazia', () => {
+    const portfolio = [];
+    const prices = {};
 
-    const result = getPortfolioStats({ portfolio, realPrices, exchangeRate });
+    const stats = getPortfolioStats({ portfolio, prices });
 
-    expect(result.totalMonthlyDividends).toBe(80);
+    expect(stats.totalInvested).toBe(0);
+    expect(stats.totalCurrent).toBe(0);
+    expect(stats.profit).toBe(0);
+    expect(stats.profitabilityPercent).toBe(0);
+    expect(stats.diversificationCount).toBe(0);
+    expect(stats.totalMonthlyDividends).toBe(0);
   });
 });

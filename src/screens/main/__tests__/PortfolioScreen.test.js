@@ -1,8 +1,8 @@
+jest.mock('../../../contexts/PortfolioContext');
+
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import PortfolioScreen from '../PortfolioScreen';
-import { PortfolioProvider } from '../../../contexts/PortfolioContext';
-
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
   getItem: jest.fn(() => Promise.resolve(null)),
@@ -23,20 +23,12 @@ const navigation = { navigate: jest.fn() };
 
 describe('PortfolioScreen', () => {
   it('renders loading state initially', () => {
-    const { getByText } = render(
-      <PortfolioProvider>
-        <PortfolioScreen navigation={navigation} />
-      </PortfolioProvider>
-    );
+    const { getByText } = render(<PortfolioScreen navigation={navigation} />);
     expect(getByText('Carregando Portfólio...')).toBeTruthy();
   });
 
   it('displays assets after loading', async () => {
-    const { getByText, queryByText } = render(
-      <PortfolioProvider>
-        <PortfolioScreen navigation={navigation} />
-      </PortfolioProvider>
-    );
+    const { getByText, queryByText } = render(<PortfolioScreen navigation={navigation} />);
     await waitFor(() => {
       expect(queryByText('Carregando Portfólio...')).toBeNull();
     });
@@ -44,11 +36,13 @@ describe('PortfolioScreen', () => {
   });
 
   it('opens AddAssetModal when "+ Adicionar" button is pressed', async () => {
-    const { getByText, getByTestId } = render(
-      <PortfolioProvider>
-        <PortfolioScreen navigation={navigation} />
-      </PortfolioProvider>
-    );
+    const { getByText, getByTestId, queryByText } = render(<PortfolioScreen navigation={navigation} />);
+
+    // Wait for loading to complete
+    await waitFor(() => {
+      expect(queryByText('Carregando Portfólio...')).toBeNull();
+    });
+
     const addButton = getByText('+ Adicionar');
     fireEvent.press(addButton);
     await waitFor(() => {
