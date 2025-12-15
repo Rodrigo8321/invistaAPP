@@ -13,6 +13,7 @@ import { colors } from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { transactionService } from '../../services/transactionService';
+import { calculateTotals } from '../../domain/transactions/transactionCalculator';
 import TransactionCard from '../../components/transactions/TransactionCard';
 import AddAssetModal from '../../components/transactions/AddAssetModal';
 import TransactionModal from '../../components/transactions/TransactionModal'; // 1. Importar o modal de transações
@@ -26,7 +27,7 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
   const [isTransactionModalVisible, setIsTransactionModalVisible] = useState(false); // 2. Estado para o novo modal
   const { portfolio, addAsset, reloadPortfolio } = usePortfolio(); // 3. Obter o portfólio
 
-  const [filterType, setFilterType] = useState('Compra');
+  const [filterType, setFilterType] = useState('todos');
   const [filterPeriod, setFilterPeriod] = useState('todos');
 
   useEffect(() => {
@@ -44,6 +45,7 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
     setLoading(true);
     try {
       const data = await transactionService.getTransactions();
+      console.log('Transações carregadas:', data);
       setTransactions(data);
     } catch (error) {
       console.error('Erro ao carregar transações:', error);
@@ -148,9 +150,13 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
   // 4. Função para lidar com a adição de uma NOVA TRANSAÇÃO (compra/venda)
   const handleTransactionAdded = async () => {
     setIsTransactionModalVisible(false); // Fecha o modal de transação
-    await loadTransactions(); // Recarrega a lista de transações
-    await reloadPortfolio(); // Recalcula o portfólio
-    Alert.alert('✅ Sucesso', 'Nova transação registrada!');
+    try {
+      await onRefresh(); // Recarrega transações e portfólio
+      Alert.alert('✅ Sucesso', 'Nova transação registrada!');
+    } catch (error) {
+      console.error('Erro ao registrar transação:', error);
+      Alert.alert('Erro', 'Não foi possível registrar a transação.');
+    }
   };
 
   const filtered = useMemo(() => {
@@ -162,7 +168,7 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
   }, [transactions, filterType, filterPeriod]);
 
   const totals = useMemo(() => {
-    return transactionService.calculateTotals(filtered);
+    return calculateTotals(filtered);
   }, [filtered]);
 
   if (loading) {
@@ -260,6 +266,15 @@ const TransactionHistoryScreen = ({ route, navigation }) => {
                   style={styles.filtersRow}
                   contentContainerStyle={styles.filtersContent}
                 >
+                  <TouchableOpacity
+                    style={[styles.filterChip, filterType === 'todos' && styles.filterChipActive]}
+                    onPress={() => setFilterType('todos')}
+                  >
+                    <Text style={[styles.filterText, filterType === 'todos' && styles.filterTextActive]}>
+                      📋 Todas
+                    </Text>
+                  </TouchableOpacity>
+
                   <TouchableOpacity
                     style={[styles.filterChip, filterType === 'Compra' && styles.filterChipActive]}
                     onPress={() => setFilterType('Compra')}

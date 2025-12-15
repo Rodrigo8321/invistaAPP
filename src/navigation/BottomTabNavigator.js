@@ -5,7 +5,7 @@ import { colors } from '../styles/colors';
 
 import DashboardScreen from '../screens/main/DashboardScreen';
 import PortfolioScreen from '../screens/main/PortfolioScreen';
-import TransactionHistoryScreen from '../screens/main/TransactionHistoryScreen'; // ← ADICIONAR
+import TransactionHistoryScreen from '../screens/main/TransactionHistoryScreen';
 import AnalysisScreen from '../screens/main/AnalysisScreen';
 import AlertsScreen from '../screens/main/AlertsScreen';
 import SettingsScreen from '../screens/main/SettingsScreen';
@@ -60,12 +60,12 @@ export const BottomTabNavigator = () => {
         ),
       })}
     >
-      <Tab.Screen 
-        name="Dashboard" 
+      <Tab.Screen
+        name="Dashboard"
         component={DashboardScreen}
         options={{ tabBarLabel: 'Início' }}
       />
-      
+
       <Tab.Screen
         name="Portfolio"
         component={PortfolioScreen}
@@ -89,9 +89,6 @@ export const BottomTabNavigator = () => {
         component={AlertsScreen}
         options={{
           tabBarLabel: 'Alertas',
-          tabBarIcon: ({ color, size }) => (
-            <Text style={{ fontSize: size }}>🔔</Text>
-          ),
         }}
       />
 

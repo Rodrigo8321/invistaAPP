@@ -83,8 +83,8 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded, ini
 
   const handleSubmit = async () => {
     // Validate selected asset
-    if (!selectedAsset) {
-      Alert.alert('Erro', 'Selecione um ativo');
+    if (!selectedAsset || !selectedAsset.ticker) {
+      Alert.alert('Erro', 'Selecione um ativo válido');
       return;
     }
 

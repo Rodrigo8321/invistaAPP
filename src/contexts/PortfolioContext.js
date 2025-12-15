@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { transactionService } from '../services/transactionService';
 import storageService from '../services/storageService'; // Manter para addAsset, se necessário
+import { calculatePortfolioFromTransactions } from '../domain/transactions/transactionCalculator';
 
 export const PortfolioContext = createContext();
 
@@ -31,7 +32,7 @@ const loadPortfolio = async () => {
     // 1. Buscar todas as transações salvas
     const transactions = await transactionService.getTransactions();
     // 2. Calcular o estado do portfólio com base nessas transações
-    const calculatedPortfolio = transactionService.calculatePortfolioFromTransactions(transactions);
+    const calculatedPortfolio = calculatePortfolioFromTransactions(transactions);
     setPortfolio(calculatedPortfolio);
     console.log('✅ Portfólio calculado a partir de', transactions.length, 'transações.');
   } catch (err) {

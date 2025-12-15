@@ -5,7 +5,8 @@ import { formatCurrency } from '../../utils/formatters';
 
 const TransactionCard = ({ transaction, onDelete, onRemoveAsset }) => {
   const isCompra = transaction.type === 'Compra';
-  const total = transaction.quantity * transaction.unitPrice;
+  const unitPrice = transaction.unitPrice || transaction.averagePrice || 0;
+  const total = transaction.quantity * unitPrice;
   const profit = transaction.profit || 0;
   const profitPercent = typeof transaction.profitPercent === 'number' && !isNaN(transaction.profitPercent) ? transaction.profitPercent : 0;
 
@@ -69,7 +70,7 @@ const TransactionCard = ({ transaction, onDelete, onRemoveAsset }) => {
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Preço Unitário</Text>
           <Text style={styles.detailValue}>
-            {formatCurrency(transaction.unitPrice)}
+            {formatCurrency(unitPrice)}
           </Text>
         </View>
 

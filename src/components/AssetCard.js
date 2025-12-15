@@ -6,6 +6,7 @@ import {
   StyleSheet
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { colors } from '../styles/colors';
 
 const AssetCard = ({ holding, currentPrice }) => {
   const navigation = useNavigation();
@@ -34,11 +35,12 @@ const AssetCard = ({ holding, currentPrice }) => {
       <View style={styles.header}>
         <View>
           <Text style={styles.symbol}>{holding.symbol}</Text>
+          <Text style={styles.name}>{holding.name}</Text>
           <Text style={styles.quantity}>{holding.quantity} ações</Text>
         </View>
         
         <View style={styles.rightSection}>
-          <Text style={styles.currentPrice}>R$ {(currentPrice || 0).toFixed(2)}</Text>
+          <Text style={styles.currentPrice}>R$ {(totalValue || 0).toFixed(2)}</Text>
           <Text style={[
             styles.change,
             isPositive ? styles.positive : styles.negative
@@ -82,10 +84,12 @@ const AssetCard = ({ holding, currentPrice }) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -100,11 +104,17 @@ const styles = StyleSheet.create({
   symbol: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2C3E50',
+    color: colors.text,
+  },
+  name: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    marginTop: 2,
   },
   quantity: {
     fontSize: 14,
-    color: '#7F8C8D',
+    color: colors.textSecondary,
     marginTop: 4,
   },
   rightSection: {
@@ -113,7 +123,7 @@ const styles = StyleSheet.create({
   currentPrice: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#2C3E50',
+    color: colors.text,
   },
   change: {
     fontSize: 16,
@@ -121,14 +131,14 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   positive: {
-    color: '#27AE60',
+    color: colors.success,
   },
   negative: {
-    color: '#E74C3C',
+    color: colors.danger,
   },
   divider: {
     height: 1,
-    backgroundColor: '#E1E8ED',
+    backgroundColor: colors.border,
     marginVertical: 16,
   },
   footer: {
@@ -140,24 +150,24 @@ const styles = StyleSheet.create({
   },
   footerLabel: {
     fontSize: 12,
-    color: '#7F8C8D',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   footerValue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#2C3E50',
+    color: colors.text,
   },
   clickIndicator: {
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F0F3F5',
+    borderTopColor: colors.border,
     alignItems: 'center',
   },
   clickText: {
     fontSize: 13,
-    color: '#4A90E2',
+    color: colors.primary,
     fontWeight: '600',
   },
 });

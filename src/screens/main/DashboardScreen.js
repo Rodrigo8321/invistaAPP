@@ -16,20 +16,40 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { usePortfolio } from '../../contexts/PortfolioContext'; // 1. Usar o contexto do portfólio
 import { fetchQuote, fetchExchangeRate } from '../../services/marketService'; // 2. Importar fetchQuote
+import { calculateAssetsWithRealPrices, calculateCategoryAllocations, calculatePerformersBySegment } from '../../domain/portfolio/performanceCalculations';
+import { getPortfolioStats } from '../../domain/portfolio/portfolioStats';
 import TransactionModal from '../../components/transactions/TransactionModal';
 
 const { width } = Dimensions.get('window');
 
 const DashboardScreen = ({ navigation }) => {
-  // 3. Obter dados reais do contexto em vez de mock
-  const { portfolio, loading: portfolioLoading } = usePortfolio();
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [realPrices, setRealPrices] = useState({});
-  const [exchangeRate, setExchangeRate] = useState(5.0);
-  const [selectedFilter, setSelectedFilter] = useState(['acao']); // array of filters
+  // =================================================================
+  // ESTADOS E CONTEXTO
+  // =================================================================
 
-  // 4. Função para buscar dados em tempo real
+  // Obtém o portfólio e o estado de carregamento do PortfolioContext.
+  const { portfolio, loading: portfolioLoading } = usePortfolio();
+
+  // Estado para controlar o "puxar para atualizar".
+  const [refreshing, setRefreshing] = useState(false);
+  // Estado de carregamento local para a busca de preços em tempo real.
+  const [loading, setLoading] = useState(true);
+  // Armazena os preços atuais dos ativos buscados pela API.
+  const [realPrices, setRealPrices] = useState({});
+  // Armazena a taxa de câmbio USD -> BRL.
+  const [exchangeRate, setExchangeRate] = useState(5.0);
+  // Filtros selecionados para a lista de melhores/piores.
+  const [selectedFilter, setSelectedFilter] = useState(['acao']);
+
+  // =================================================================
+  // FUNÇÕES DE DADOS
+  // =================================================================
+
+  /**
+   * Busca os preços em tempo real para todos os ativos do portfólio.
+   * Utiliza `Promise.allSettled` para garantir que, mesmo que uma API falhe, as outras continuem.
+   * @param {boolean} showLoader - Controla se o indicador de carregamento principal deve ser exibido.
+   */
   const loadRealData = async (showLoader = true) => {
     if (!portfolio || portfolio.length === 0) {
       setLoading(false);
@@ -38,12 +58,15 @@ const DashboardScreen = ({ navigation }) => {
     }
     if (showLoader) setLoading(true);
 
+    // 1. Busca a taxa de câmbio mais recente.
     const rate = await fetchExchangeRate();
     setExchangeRate(rate);
 
+    // 2. Cria um array de promessas para buscar a cotação de cada ativo.
     const pricesPromises = portfolio.map(asset => fetchQuote(asset));
     const results = await Promise.allSettled(pricesPromises);
 
+    // 3. Mapeia os resultados bem-sucedidos para um objeto { ticker: priceData }.
     const pricesMap = results.reduce((acc, result, index) => {
       if (result.status === 'fulfilled') {
         acc[portfolio[index].ticker] = result.value;
@@ -51,161 +74,97 @@ const DashboardScreen = ({ navigation }) => {
       return acc;
     }, {});
 
+    // 4. Atualiza o estado com os preços e finaliza o carregamento.
     setRealPrices(pricesMap);
     setLoading(false);
     setRefreshing(false);
   };
 
-  // Assets com dados reais
-  const assetsWithRealPrices = useMemo(() => {
-    return portfolio.map(asset => {
-      const realPrice = realPrices[asset.ticker];
-      const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
-      const priceInBRL = asset.currency === 'USD' ? currentPrice * exchangeRate : currentPrice;
-      const invested = asset.averagePrice * asset.quantity;
-      const current = priceInBRL * asset.quantity;
-      const profit = current - invested;
-      const profitPercent = invested > 0 ? (profit / invested) * 100 : 0;
+  // =================================================================
+  // CÁLCULOS E MEMORIZAÇÃO (useMemo)
+  // =================================================================
 
-      return {
-        ...asset,
-        currentPriceReal: priceInBRL,
-        profit,
-        profitPercent,
-        weeklyChange: realPrice?.changePercent || 0, // Usar a variação diária como fallback
-        isMock: realPrice?.isMock || false,
-      };
-    }); // Removido weeklyStartPrices
+  /**
+   * Memoiza a combinação dos dados do portfólio com os preços em tempo real.
+   * Calcula o lucro/prejuízo para cada ativo individualmente.
+   */
+  const assetsWithRealPrices = useMemo(() => {
+    return calculateAssetsWithRealPrices(portfolio, realPrices, exchangeRate);
   }, [portfolio, realPrices, exchangeRate]);
 
-  // Cards que mostram os três melhores ativos de cada segmento (ação, fii, crypto)
-  // Defensive fix: add default empty array in case assetsWithRealPrices is undefined
-  const topThreeAssetsBySegment = useMemo(() => {
-    const segments = ['acao', 'fii', 'crypto'];
-    const topThreeAssets = {};
-
-    segments.forEach(segment => {
-      const filteredAssets = (assetsWithRealPrices || []).filter(a =>
-        a.type && a.type.toLowerCase().replace('ção', 'cao') === segment
-      );
-      // Ordena por variação semanal e pega os três primeiros
-      const sorted = filteredAssets.sort((a, b) => b.weeklyChange - a.weeklyChange);
-      topThreeAssets[segment] = sorted.slice(0, 3);
-    });
-
-    return topThreeAssets;
+  /**
+   * Memoiza os 3 melhores e piores ativos de cada segmento com base na sua variação diária.
+   * Segmentos: acao, fii, stock, reit, crypto, etf.
+   */
+  const performersBySegment = useMemo(() => {
+    return calculatePerformersBySegment(assetsWithRealPrices);
   }, [assetsWithRealPrices]);
 
-
+  // Mapa para exibir nomes de filtros amigáveis.
   const filterMap = { acao: 'Ação', fii: 'FII', stock: 'Stock', reit: 'REIT', etf: 'ETF', crypto: 'Crypto' };
+  // Estado para controlar a visibilidade do modal de nova transação.
   const [transactionModalVisible, setTransactionModalVisible] = useState(false);
   const [transactionDateInput, setTransactionDateInput] = useState(null);
 
-  // 5. Chamar a busca de dados quando o portfólio carregar
+  // =================================================================
+  // EFEITOS (useEffect)
+  // =================================================================
+
+  // Dispara a busca de dados em tempo real assim que o portfólio do contexto termina de carregar.
   useEffect(() => {
     if (!portfolioLoading) loadRealData();
   }, [portfolioLoading]);
 
-  // ========== CÁLCULOS ==========
-  const stats = useMemo(() => {
-    let totalInvested = 0;
-    let totalCurrent = 0;
-    let totalStocks = 0;
-    let totalCrypto = 0;
-    let totalInvestedUSD = 0;
-    let dailyProfitBRL = 0;
-    let totalMonthlyDividends = 0;
+  // =================================================================
+  // CÁLCULOS ADICIONAIS (MEMORIZADOS)
+  // =================================================================
 
-    portfolio.forEach(asset => {
-      const realPrice = realPrices[asset.ticker];
-      const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
-      const priceInBRL = asset.currency === 'USD' ? currentPrice * exchangeRate : currentPrice;
+  // Calcula as estatísticas gerais do portfólio (valor total, lucro, etc.).
+  const stats = useMemo(() =>
+    getPortfolioStats({ portfolio, realPrices, exchangeRate }),
+  [portfolio, realPrices, exchangeRate]);
 
-      // ✅ CORREÇÃO: Usar o `totalInvested` que já foi calculado pelo serviço,
-      // em vez de recalcular aqui. Isso garante a precisão dos valores.
-      const invested = asset.totalInvested || 0;
-      const current = priceInBRL * asset.quantity;
-
-      totalInvested += invested;
-      totalCurrent += current;
-
-      // Soma os dividendos mensais de cada ativo
-      totalMonthlyDividends += asset.monthlyDividends || 0;
-
-      if (asset.type === 'Crypto') {
-        totalCrypto += current;
-      } else {
-        totalStocks += current;
-      }
-
-      // Sum invested in USD for stocks, REITs, ETFs
-      if (asset.currency === 'USD' && ['Stock', 'REIT', 'ETF'].includes(asset.type)) {
-        totalInvestedUSD += invested;
-        // Calcula a variação diária em BRL para ativos em USD
-        const dailyChange = realPrice?.change || 0;
-        dailyProfitBRL += dailyChange * asset.quantity * exchangeRate;
-      }
-    });
-
-    const profit = totalCurrent - totalInvested;
-    const profitPercent = (profit / totalInvested) * 100;
-
-    return {
-      invested: totalInvested,
-      current: totalCurrent,
-      profit,
-      profitPercent,
-      stocksPercent: (totalStocks / totalCurrent) * 100,
-      cryptoPercent: (totalCrypto / totalCurrent) * 100,
-      investedUSD: totalInvestedUSD,
-      dailyProfitBRL,
-      totalMonthlyDividends,
-    };
-  }, [portfolio, realPrices, exchangeRate]);
-
-  // Alocações por categoria
+  // Calcula a alocação percentual para cada tipo de ativo (Ação, FII, etc.).
   const categoryAllocations = useMemo(() => {
-    const typeTotals = {};
-
-    portfolio.forEach(asset => {
-      const realPrice = realPrices[asset.ticker];
-      const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
-      const priceInBRL = asset.currency === 'USD' ? currentPrice * exchangeRate : currentPrice;
-      const value = priceInBRL * asset.quantity;
-      const key = asset.type.toLowerCase().replace('ção', 'cao');
-
-      typeTotals[key] = (typeTotals[key] || 0) + value;
-    });
-
-    const total = Object.values(typeTotals).reduce((sum, val) => sum + val, 0);
-
-    return Object.entries(typeTotals)
-      .map(([key, value]) => ({
-        type: key,
-        value,
-        percentage: (value / total) * 100,
-        label: filterMap[key] || key,
-      }))
-      .sort((a, b) => b.percentage - a.percentage);
+    return calculateCategoryAllocations(portfolio, realPrices, exchangeRate);
   }, [portfolio, realPrices, exchangeRate]);
 
-  // Filtros
-  const filteredAssetsLocal = useMemo(() => {
-    let filtered = assetsWithRealPrices;
+  // =================================================================
+  // HANDLERS DE EVENTOS
+  // =================================================================
 
-    if (selectedFilter.length > 0) {
-      filtered = filtered.filter(a => selectedFilter.includes(a.type.toLowerCase().replace('ção', 'cao')));
-    }
+  // Abre o modal para registrar uma nova transação.
+  const handleNewTransaction = () => {
+    setTransactionModalVisible(true);
+  };
 
-    return filtered.sort((a, b) => b.weeklyChange - a.weeklyChange);
-  }, [assetsWithRealPrices, selectedFilter]);
+  // Chamado quando o modal de transação é fechado ou uma transação é adicionada.
+  const handleTransactionAdded = () => {
+    setTransactionModalVisible(false);
+    // O recarregamento dos dados agora é feito na própria tela de histórico.
+  };
 
-  // Top 3 e Worst 3
-  const topPerformers = filteredAssetsLocal.slice(0, 3);
-  const worstPerformers = [...filteredAssetsLocal].reverse().slice(0, 3);
+  /**
+   * Handler para o "puxar para atualizar".
+   * Reinicia o estado de refreshing e chama a função para buscar dados.
+   */
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadRealData(false); // `false` para não mostrar o loading principal, apenas o do RefreshControl.
+  };
 
-  // ========== LOADING STATE ==========
-  if (loading || portfolioLoading) { // 6. Considerar o loading do contexto também
+  // Handler para o botão de atualização manual.
+  const handleManualRefresh = () => {
+    onRefresh();
+    Alert.alert('Atualizado', 'Os dados do portfólio foram atualizados.');
+  };
+
+  // =================================================================
+  // RENDERIZAÇÃO DO COMPONENTE
+  // =================================================================
+
+  // Exibe uma tela de carregamento enquanto o portfólio ou os preços estão sendo buscados.
+  if (loading || portfolioLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -218,26 +177,6 @@ const DashboardScreen = ({ navigation }) => {
       </SafeAreaView>
     );
   }
-
-  // ========== HANDLERS ==========
-  const handleNewTransaction = () => {
-    setTransactionModalVisible(true);
-  };
-
-  const handleTransactionAdded = () => {
-    setTransactionModalVisible(false);
-    // Optionally refresh data or show success message
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadRealData(false); // 7. Chamar a função real no refresh
-  };
-
-  const handleManualRefresh = () => {
-    onRefresh();
-    Alert.alert('Atualizado', 'Os dados do portfólio foram atualizados.');
-  };
 
 
   return (
@@ -268,7 +207,7 @@ const DashboardScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.heroValueContainer}>
-            <Text style={styles.heroValue}>{formatCurrency(stats.current)}</Text>
+            <Text style={styles.heroValue}>{formatCurrency(stats.totalCurrent)}</Text>
             <View style={styles.heroProfitContainer}>
               <View style={[
                 styles.heroProfitBadge,
@@ -287,8 +226,8 @@ const DashboardScreen = ({ navigation }) => {
           {/* Quick Stats */}
           <View style={styles.quickStats}>
             <View style={styles.quickStatItem}>
-              <Text style={styles.quickStatLabel}>Investido</Text>
-              <Text style={styles.quickStatValue}>{formatCurrency(stats.invested)}</Text>
+              <Text style={styles.quickStatLabel}>Total Investido</Text>
+              <Text style={styles.quickStatValue}>{formatCurrency(stats.totalInvested)}</Text>
             </View>
             <View style={styles.quickStatDivider} />
             <View style={styles.quickStatItem}>
@@ -376,153 +315,60 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Cards que mostram os três melhores ativos de cada segmento */}
-        <View style={styles.topCardsSection}>
-          <Text style={styles.sectionTitle}>Top 3 Melhores Ativos por Segmento</Text>
-          {Object.entries(topThreeAssetsBySegment).map(([segment, assets]) => (
+        {/* SEÇÃO DE MELHORES E PIORES ATIVOS */}
+        <View style={styles.performersSection}>
+          {Object.entries(performersBySegment).map(([segment, data]) => (
             <View key={segment} style={styles.segmentGroup}>
-              <Text style={styles.segmentTitle}>{segment.toUpperCase()}</Text>
-              <View style={styles.topCardsContainer}>
-                {assets.map((asset) => (
-                  <TouchableOpacity
-                    key={asset.ticker}
-                    style={styles.topCard}
-                    onPress={() => navigation.navigate('AssetDetails', { asset })}
-                  >
-                    <Text style={styles.topCardTicker}>{asset.ticker}</Text>
-                    <Text numberOfLines={1} style={styles.topCardName}>{asset.name}</Text>
-                    <Text style={styles.topCardProfit}>
-                      {asset.profit >= 0 ? '+' : '-'}{formatCurrency(Math.abs(asset.profit))}
+              <Text style={styles.segmentTitle}>GERAL</Text>
+
+              {/* Melhores Ativos */}
+              <Text style={styles.performerTitle}>🏆 Melhores do Dia</Text>
+              {data.top.map((asset) => (
+                <TouchableOpacity
+                  key={asset.ticker}
+                  style={styles.assetCard}
+                  onPress={() => navigation.navigate('AssetDetails', { asset })}
+                >
+                  <View style={styles.assetCardLeft}>
+                    <Text style={styles.assetTicker}>{asset.ticker}</Text>
+                    <Text style={styles.assetName} numberOfLines={1}>{asset.name}</Text>
+                  </View>
+                  <View style={styles.assetCardRight}>
+                    <Text style={[styles.assetProfitText, { color: colors.success }]}>
+                      +{formatPercent(asset.dailyChange)}
                     </Text>
-                    <Text style={[styles.topCardProfitPercent, { color: asset.profit >= 0 ? colors.success : colors.danger }]}>
-                      {formatPercent(asset.profitPercent)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+              {/* Piores Ativos */}
+              {data.worst.length > 0 && (
+                <>
+                  <Text style={[styles.performerTitle, { marginTop: 16 }]}>📉 Piores do Dia</Text>
+                  {data.worst.map((asset) => (
+                    <TouchableOpacity
+                      key={asset.ticker}
+                      style={styles.assetCard}
+                      onPress={() => navigation.navigate('AssetDetails', { asset })}
+                    >
+                      <View style={styles.assetCardLeft}>
+                        <Text style={styles.assetTicker}>{asset.ticker}</Text>
+                        <Text style={styles.assetName} numberOfLines={1}>{asset.name}</Text>
+                      </View>
+                      <View style={styles.assetCardRight}>
+                        <Text style={[styles.assetProfitText, { color: colors.danger }]}>
+                          {formatPercent(asset.dailyChange)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
             </View>
           ))}
         </View>
 
-        {/* FILTROS */}
-        <View style={styles.filterSection}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterGrid}
-          >
-            {Object.entries(filterMap).map(([key, label]) => (
-              <TouchableOpacity
-                key={key}
-                style={[styles.filterCard, selectedFilter.includes(key) && styles.filterCardActive]}
-                onPress={() => {
-                  setSelectedFilter(prev =>
-                    prev.includes(key)
-                      ? prev.filter(f => f !== key)
-                      : [...prev, key]
-                  );
-                }}
-              >
-                <Text style={styles.filterCardIcon}>
-                  {key === 'acao' || key === 'stock' ? '📈' :
-                   key === 'fii' || key === 'reit' ? '🏢' :
-                   key === 'etf' ? '📊' : '💰'}
-                </Text>
-                <Text style={[styles.filterCardText, selectedFilter.includes(key) && styles.filterCardTextActive]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
 
-        {/* TOP PERFORMERS */}
-        <View style={styles.performersSection}>
-          <View style={styles.performerHeader}>
-            <Text style={styles.performerTitle}>🏆 Melhores</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Portfolio')}>
-              <Text style={styles.seeAllButton}>Ver todos →</Text>
-            </TouchableOpacity>
-          </View>
-
-          {topPerformers.map((asset, index) => (
-            <TouchableOpacity
-              key={asset.id}
-              style={styles.assetCard}
-              onPress={() => navigation.navigate('AssetDetails', { asset })}
-              activeOpacity={0.7}
-            >
-              <View style={styles.assetCardLeft}>
-                <View style={styles.assetRank}>
-                  <Text style={styles.assetRankText}>
-                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
-                  </Text>
-                </View>
-                <View style={styles.assetInfo}>
-                  <View style={styles.assetTitleRow}>
-                    <Text style={styles.assetTicker}>{asset.ticker}</Text>
-                    {asset.isMock && <Text style={styles.mockBadge}>📍</Text>}
-                  </View>
-                  <Text style={styles.assetName} numberOfLines={1}>{asset.name}</Text>
-                </View>
-              </View>
-              <View style={styles.assetCardRight}>
-                <Text style={styles.assetPrice}>{formatCurrency(asset.currentPriceReal)}</Text>
-                <View style={[
-                  styles.assetProfitBadge,
-                  { backgroundColor: asset.profit >= 0 ? colors.success + '15' : colors.danger + '15' }
-                ]}>
-                  <Text style={[
-                    styles.assetProfitText,
-                    { color: asset.profit >= 0 ? colors.success : colors.danger }
-                  ]}>
-                    {asset.profit >= 0 ? '▲' : '▼'} {asset.profit >= 0 ? '+' : ''}{formatPercent(asset.profitPercent)}
-                  </Text>
-                </View>
-                <Text style={styles.assetWeeklyChange}>
-                  Semana: {asset.weeklyChange >= 0 ? '+' : ''}{formatPercent(asset.weeklyChange)}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* WORST PERFORMERS */}
-        {worstPerformers[0]?.profit < 0 && (
-          <View style={styles.performersSection}>
-            <Text style={styles.performerTitle}>📉 Atenção</Text>
-
-            {worstPerformers.map((asset) => (
-              <TouchableOpacity
-                key={asset.id}
-                style={styles.assetCard}
-                onPress={() => navigation.navigate('AssetDetails', { asset })}
-                activeOpacity={0.7}
-              >
-                <View style={styles.assetCardLeft}>
-                  <View style={styles.assetRank}>
-                    <Text style={styles.assetRankText}>⚠️</Text>
-                  </View>
-                  <View style={styles.assetInfo}>
-                    <View style={styles.assetTitleRow}>
-                      <Text style={styles.assetTicker}>{asset.ticker}</Text>
-                      {asset.isMock && <Text style={styles.mockBadge}>📍</Text>}
-                    </View>
-                    <Text style={styles.assetName} numberOfLines={1}>{asset.name}</Text>
-                  </View>
-                </View>
-                <View style={styles.assetCardRight}>
-                  <Text style={styles.assetPrice}>{formatCurrency(asset.currentPriceReal)}</Text>
-                  <View style={[styles.assetProfitBadge, { backgroundColor: colors.danger + '15' }]}>
-                    <Text style={[styles.assetProfitText, { color: colors.danger }]}>
-                      {formatPercent(asset.profitPercent)}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
         {/* AÇÕES RÁPIDAS */}
         <View style={styles.quickActionsSection}>
           <Text style={styles.sectionTitle}>Ações Rápidas</Text>
@@ -536,7 +382,7 @@ const DashboardScreen = ({ navigation }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickActionCard}
-              onPress={() => navigation.navigate('PortfolioManagement')}
+              onPress={() => navigation.navigate('Portfolio')}
             >
               <Text style={styles.quickActionIcon}>📊</Text>
               <Text style={styles.quickActionText}>Gestão de Portfólio</Text>

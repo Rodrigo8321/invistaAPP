@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { usePortfolio } from '../../contexts/PortfolioContext';
 import { fetchExchangeRate, fetchQuote } from '../../services/marketService';
+import { getFilteredPortfolioStats } from '../../domain/portfolio/filteredPortfolioStats';
 import AssetCard from '../../components/AssetCard';
 
 const { width } = Dimensions.get('window');
@@ -79,9 +80,9 @@ const PortfolioScreen = ({ navigation }) => {
     return portfolio.map((asset) => {
       const realPrice = realPrices[asset.ticker];
       const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
-      const priceInBRL = asset.currency === 'USD' ? currentPrice * exchangeRate : currentPrice;
-      // ✅ CORREÇÃO: Usar o `totalInvested` que já foi calculado pelo serviço,
-      // em vez de recalcular aqui. Isso garante a precisão dos valores.
+      const priceInBRL = asset.currency === 'USD' ? (currentPrice || 0) * exchangeRate : currentPrice;
+      // ✅ CORREÇÃO: Usar o `totalInvested` que já foi calculado pelo serviço de transações,
+      // garantindo que o custo das vendas seja abatido corretamente.
       const invested = asset.totalInvested || 0;
       const current = priceInBRL * asset.quantity;
       const profit = current - invested;
@@ -124,21 +125,9 @@ const PortfolioScreen = ({ navigation }) => {
     return filtered;
   }, [assetsWithRealPrices, selectedType, searchQuery, sortBy]);
 
-  const stats = useMemo(() => {
-    const filtered = filteredAssets;
-    const totalInvested = filtered.reduce((sum, a) => sum + a.invested, 0);
-    const totalCurrent = filtered.reduce((sum, a) => sum + a.current, 0);
-    const totalProfit = totalCurrent - totalInvested;
-    const profitPercent = totalInvested > 0 ? (totalProfit / totalInvested) * 100 : 0;
-
-    return {
-      count: filtered.length,
-      invested: totalInvested,
-      current: totalCurrent,
-      profit: totalProfit,
-      profitPercent,
-    };
-  }, [filteredAssets]);
+  const stats = useMemo(() =>
+    getFilteredPortfolioStats(filteredAssets, realPrices),
+  [filteredAssets, realPrices]);
 
   if (portfolioLoading) { // 5. Usar o loading principal do contexto
     return (

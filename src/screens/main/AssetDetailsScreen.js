@@ -82,8 +82,13 @@ const AssetDetailsScreen = ({ route, navigation }) => {
   };
 
   const loadPriceHistory = async (period) => {
-    const history = await BrapiService.getPriceHistory(symbol, period);
-    setPriceHistory(history);
+    try {
+      const history = await BrapiService.getPriceHistory(symbol, period);
+      setPriceHistory(history);
+    } catch (error) {
+      console.error(`Falha ao carregar histórico de preços para ${symbol}:`, error);
+      setPriceHistory([]); // Define como vazio para evitar que a tela quebre
+    }
   };
 
   const loadNews = async () => {
