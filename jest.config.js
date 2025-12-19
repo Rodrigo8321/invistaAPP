@@ -1,9 +1,9 @@
 module.exports = {
   preset: 'react-native',
-  setupFilesAfterEnv: ['./jest.setup.js'],
-  transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-navigation)/)',
-  ],
-  testPathIgnorePatterns: ['/node_modules/', '/android/', '/ios/'],
-  verbose: true,
+  rootDir: '.',
+  setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect', '<rootDir>/src/__mocks__/jest.setup.js'],
+  moduleNameMapper: {
+    '^src/(.*)$': '<rootDir>/src/$1',
+    '^@(.*)$': '<rootDir>/src/$1',
+  },
 };

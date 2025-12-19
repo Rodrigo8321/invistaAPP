@@ -6,7 +6,7 @@ import {
   ScrollView,
   RefreshControl,
 } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePortfolio } from '../../contexts/PortfolioContext'; // 1. Importar o hook do contexto
 import { fetchQuote, fetchExchangeRate } from '../../services/marketService'; // Importar serviços de API

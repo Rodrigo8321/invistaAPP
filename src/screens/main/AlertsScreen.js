@@ -8,7 +8,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {

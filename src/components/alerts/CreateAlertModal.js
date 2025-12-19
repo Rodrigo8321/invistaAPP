@@ -9,7 +9,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
 import { ALERT_TYPES, createAlert } from '../../services/alertService';
 

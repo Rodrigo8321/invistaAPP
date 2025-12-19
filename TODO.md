@@ -1,46 +1,38 @@
-# AssetDetailScreen Improvements
+# Correções para erro "TypeError: Cannot read property 'toFixed' of undefined"
 
-## Visual Design Enhancements
+## Problema
 
-- [ ] Add shadows and elevation to cards for depth
-- [ ] Improve spacing and padding throughout the screen
-- [ ] Enhance color scheme and typography hierarchy
-- [ ] Add gradient backgrounds for better visual appeal
+O erro ocorre quando componentes tentam chamar `.toFixed()` em valores `undefined` ou `NaN` dos dados do portfólio.
 
-## Header Section Improvements
+## Correções Necessárias
 
-- [x] Make asset icon more prominent with better styling
-- [x] Improve price display layout with better visual separation
-- [x] Add loading states for price updates
+### ✅ 1. PortfolioSummary.js
 
-## Summary Card Enhancements
+- [x] Corrigir `Math.abs(stats.profitPercent).toFixed(2)` para lidar com valores undefined/NaN
 
-- [ ] Add gradient backgrounds based on profit/loss
-- [ ] Improve visual indicators for positive/negative performance
-- [ ] Better typography and spacing
+### ✅ 2. PerformanceComparison.js
 
-## Chart Section Improvements
+- [x] Corrigir `Math.abs(asset.performance || 0).toFixed(2)` para validação mais robusta
 
-- [ ] Enhance period selector with better styling
-- [ ] Add loading states for chart data
-- [ ] Improve chart container styling
+### ✅ 3. RecommendationsCard.js
 
-## Fundamentals Section
+- [ ] Corrigir `(avgPerformance || 0).toFixed(2)` para validação mais robusta
 
-- [x] Better grid layout for fundamentals data
-- [x] Add color coding for good/bad values
-- [x] Improve typography and spacing
+### ✅ 4. DiversificationChart.js
 
-## Action Buttons
+- [ ] Corrigir `((item.value / total) * 100).toFixed(1)` para validar item.value e total
 
-- [ ] Make buttons more prominent with better sizing
-- [ ] Add press effects and animations
-- [ ] Improve button layout and spacing
-- [ ] Add icons and better visual hierarchy
+### ✅ 5. SectorDistribution.js
 
-## General UX Improvements
+- [ ] Corrigir `((item.value / total) * 100).toFixed(1)` para validar item.value e total
 
-- [ ] Add pull-to-refresh functionality
-- [ ] Better error handling and empty states
-- [ ] Improve accessibility
-- [ ] Add haptic feedback for interactions
+## Estratégia de Correção
+
+- Usar função helper `safeToFixed(value, decimals = 2)` que verifica se o valor é um número válido
+- Retornar '0.00' ou valor padrão apropriado para casos inválidos
+- Garantir que cálculos de percentual sejam seguros
+
+## Testes
+
+- [ ] Executar testes para verificar que o erro foi corrigido
+- [ ] Verificar que a aplicação funciona corretamente com dados do portfólio

@@ -1,254 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { colors } from '../../styles/colors';
-import { watchlistService } from '../../services/watchlistService';
-import { exchangeRateService } from '../../services/exchangeRateService';
-import { formatCurrency } from '../../utils/formatters';
+import colors from '../../styles/colors';
 
-const AssetCard = ({ asset, onPress }) => {
-  const navigation = useNavigation();
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [priceInBRL, setPriceInBRL] = useState(asset.currentPrice);
+export default function AssetCard({
+  asset,
+  currentPrice,
+  onPress,
+}) {
+  if (!asset) return null;
 
-  useEffect(() => {
-    checkIfFavorited();
-    convertPriceIfNeeded();
-  }, [asset.ticker]);
+  const quantity = asset.quantity ?? 0;
+  const averagePrice = asset.averagePrice ?? 0;
 
-  const checkIfFavorited = async () => {
-    const isFav = await watchlistService.isInWatchlist(asset.ticker);
-    setIsFavorited(isFav);
-  };
-
-  const convertPriceIfNeeded = async () => {
-    if (asset.currency === 'USD') {
-      const converted = await exchangeRateService.convertUSDtoBRL(asset.currentPrice);
-      setPriceInBRL(converted);
-    } else {
-      setPriceInBRL(asset.currentPrice);
-    }
-  };
-
-  const handlePress = () => {
-    if (onPress) {
-      onPress();
-    } else {
-      navigation.navigate('AssetDetail', { asset });
-    }
-  };
-
-  const handleToggleFavorite = async () => {
-    try {
-      const added = await watchlistService.toggleWatchlist(asset.ticker);
-      setIsFavorited(added);
-    } catch (error) {
-      console.error('Erro ao alternar favorito:', error);
-    }
-  };
-
-  // Ícones baseados no tipo e país
-  const getAssetIcon = () => {
-    const icons = {
-      'Ação': '📈',
-      'FII': '🏢',
-      'Stock': '🇺🇸',
-      'REIT': '🏘️',
-      'ETF': '📦',
-      'Crypto': '💰',
-    };
-    return icons[asset.type] || '📊';
-  };
-
-  // Badge de país
-  const getCountryBadge = () => {
-    const badges = {
-      'BR': '🇧🇷',
-      'US': '🇺🇸',
-      'Global': '🌐',
-    };
-    return badges[asset.country] || '';
-  };
-
-  // Cálculos
-  const currentPrice = typeof asset.currentPrice === 'number' && !isNaN(asset.currentPrice) ? asset.currentPrice : 0;
-  const avgPrice = typeof asset.avgPrice === 'number' && !isNaN(asset.avgPrice) && asset.avgPrice > 0 ? asset.avgPrice : 1;
-  const quantity = typeof asset.quantity === 'number' && !isNaN(asset.quantity) ? asset.quantity : 0;
-
-  const profit = (currentPrice - avgPrice) * quantity;
-  const profitPercent = avgPrice > 0 ? ((currentPrice - avgPrice) / avgPrice) * 100 : 0;
-  const isPositive = profit >= 0;
-
-  // Formatação de preço
-  const formatPrice = (price, currency) => {
-    const validPrice = typeof price === 'number' && !isNaN(price) ? price : 0;
-    if (currency === 'USD') {
-      return `$${validPrice.toFixed(2)}`;
-    }
-    return formatCurrency(validPrice);
-  };
+  const totalInvested = quantity * averagePrice;
+  const totalValue = quantity * (currentPrice ?? 0);
+  const profit = totalValue - totalInvested;
+  const profitPercent =
+    totalInvested > 0 ? (profit / totalInvested) * 100 : 0;
 
   return (
-    <TouchableOpacity style={styles.container} onPress={handlePress}>
-      {/* Star Button */}
-      <TouchableOpacity
-        style={styles.starButton}
-        onPress={handleToggleFavorite}
-      >
-        <Text style={styles.starIcon}>
-          {isFavorited ? '⭐' : '☆'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Header */}
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.8}
+      testID="asset-card"
+    >
       <View style={styles.header}>
-        <View style={styles.iconContainer}>
-          <Text style={styles.icon}>{getAssetIcon()}</Text>
-        </View>
-        <View style={styles.info}>
-          <View style={styles.tickerRow}>
-            <Text style={styles.ticker}>{asset.ticker}</Text>
-            <Text style={styles.countryBadge}>{getCountryBadge()}</Text>
-          </View>
-          <Text style={styles.name} numberOfLines={1}>{asset.name}</Text>
-          <Text style={styles.type}>{asset.type}</Text>
-        </View>
+        <Text style={styles.ticker}>{asset.ticker}</Text>
+        <Text style={styles.quantity}>
+          {quantity} un.
+        </Text>
       </View>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <View style={styles.priceContainer}>
-          <Text style={styles.priceLabel}>Preço Atual</Text>
-          {asset.currency === 'USD' ? (
-            <View>
-              <Text style={styles.price}>
-                {formatPrice(asset.currentPrice, 'USD')}
-              </Text>
-              <Text style={styles.priceConverted}>
-                ≈ {formatPrice(priceInBRL, 'BRL')}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.price}>
-              {formatPrice(asset.currentPrice, 'BRL')}
-            </Text>
-          )}
-        </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Preço médio</Text>
+        <Text style={styles.value}>
+          R$ {averagePrice.toFixed(2)}
+        </Text>
+      </View>
 
-        <View style={[styles.changeBadge, {
-          backgroundColor: isPositive ? colors.success + '20' : colors.danger + '20'
-        }]}>
-          <Text style={[styles.changeText, {
-            color: isPositive ? colors.success : colors.danger
-          }]}>
-            {isPositive ? '▲' : '▼'} {Math.abs(profitPercent).toFixed(2)}%
-          </Text>
-        </View>
+      <View style={styles.row}>
+        <Text style={styles.label}>Preço atual</Text>
+        <Text style={styles.value}>
+          R$ {(currentPrice ?? 0).toFixed(2)}
+        </Text>
+      </View>
+
+      <View style={styles.row}>
+        <Text style={styles.label}>Resultado</Text>
+        <Text
+          style={[
+            styles.value,
+            profit >= 0 ? styles.profit : styles.loss,
+          ]}
+        >
+          R$ {profit.toFixed(2)} ({profitPercent.toFixed(2)}%)
+        </Text>
       </View>
     </TouchableOpacity>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    position: 'relative',
-  },
-  starButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    zIndex: 10,
-  },
-  starIcon: {
-    fontSize: 20,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    marginRight: 30,
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  icon: {
-    fontSize: 24,
-  },
-  info: {
-    flex: 1,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   ticker: {
-    color: colors.text,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginBottom: 2,
+    color: colors.text,
   },
-  tickerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  countryBadge: {
+  quantity: {
     fontSize: 14,
-  },
-  name: {
     color: colors.textSecondary,
-    fontSize: 13,
-    marginBottom: 2,
   },
-  type: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    backgroundColor: colors.border,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-  },
-  footer: {
+  row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    marginTop: 4,
   },
-  priceContainer: {
-    flex: 1,
-  },
-  priceLabel: {
+  label: {
     color: colors.textSecondary,
-    fontSize: 11,
-    marginBottom: 4,
+    fontSize: 13,
   },
-  price: {
+  value: {
+    fontSize: 13,
+    fontWeight: '500',
     color: colors.text,
-    fontSize: 18,
-    fontWeight: 'bold',
   },
-  priceConverted: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
+  profit: {
+    color: colors.success,
   },
-  changeBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  changeText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+  loss: {
+    color: colors.danger,
   },
 });
-
-export default AssetCard;

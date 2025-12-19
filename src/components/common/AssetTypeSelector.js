@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 
 const AssetTypeSelector = ({ selectedType, selectedCountry, onTypeChange, onCountryChange }) => {
   const countries = [

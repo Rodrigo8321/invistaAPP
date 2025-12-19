@@ -10,13 +10,13 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { usePortfolio } from '../../contexts/PortfolioContext';
-import { fetchExchangeRate, fetchQuote } from '../../services/marketService';
+import marketService from '../../services/marketService';
 import { getFilteredPortfolioStats } from '../../domain/portfolio/filteredPortfolioStats';
-import AssetCard from '../../components/AssetCard';
+import AssetCard from '../../components/common/AssetCard';
 
 const { width } = Dimensions.get('window');
 
@@ -41,11 +41,11 @@ const PortfolioScreen = ({ navigation }) => {
       }
       if (showLoader) setIsFetchingPrices(true);
 
-      const rate = await fetchExchangeRate();
+      const rate = await marketService.getExchangeRateUSDToBRL();
       setExchangeRate(rate);
 
       // 3. Buscar cotações para cada ativo no portfólio
-      const pricesPromises = portfolio.map(asset => fetchQuote(asset));
+      const pricesPromises = portfolio.map(asset => marketService.getAssetQuote(asset));
       const results = await Promise.allSettled(pricesPromises);
 
       const pricesMap = results.reduce((acc, result, index) => {
@@ -80,6 +80,7 @@ const PortfolioScreen = ({ navigation }) => {
     return portfolio.map((asset) => {
       const realPrice = realPrices[asset.ticker];
       const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
+
       const priceInBRL = asset.currency === 'USD' ? (currentPrice || 0) * exchangeRate : currentPrice;
       // ✅ CORREÇÃO: Usar o `totalInvested` que já foi calculado pelo serviço de transações,
       // garantindo que o custo das vendas seja abatido corretamente.
@@ -287,7 +288,18 @@ const PortfolioScreen = ({ navigation }) => {
               // A navegação foi movida para dentro do AssetCard, mas garantimos que ele receba os dados corretos.
               // A rota correta 'AssetDetails' já está sendo usada pelo AssetCard.
               // Nenhuma mudança é necessária aqui, pois o AssetCard já faz o trabalho certo.
-              return <AssetCard key={asset.id} holding={asset} currentPrice={priceInBRL || 0} />;
+              return (
+                <AssetCard
+                  key={asset.ticker}
+                  asset={asset}
+                  currentPrice={priceInBRL}
+                  onPress={() =>
+                    navigation.navigate('AssetDetails', {
+                      ticker: asset.ticker,
+                    })
+                  }
+                />
+              );
             })
           )}
         </View>

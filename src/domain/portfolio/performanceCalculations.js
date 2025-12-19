@@ -1,4 +1,14 @@
 /**
+ * @file Este módulo contém funções de domínio para realizar cálculos de performance,
+ * alocação e ranking de ativos de um portfólio.
+ *
+ * As funções aqui presentes são puras e recebem os dados necessários para
+ * retornar informações calculadas, como:
+ * - Ativos com preços e lucros atualizados em tempo real.
+ * - Alocação percentual por categoria de ativo.
+ * - Ranking dos melhores e piores ativos por segmento.
+ */
+/**
  * Combina os dados do portfólio com os preços em tempo real e calcula métricas de performance.
  * @param {Array} portfolio - Array de ativos do portfólio.
  * @param {Object} realPrices - Objeto com preços em tempo real { ticker: priceData }.
@@ -6,6 +16,9 @@
  * @returns {Array} Array de ativos com métricas calculadas.
  */
 export function calculateAssetsWithRealPrices(portfolio, realPrices, exchangeRate) {
+  if (!portfolio || !Array.isArray(portfolio)) {
+    return [];
+  }
   return portfolio.map(asset => {
     const realPrice = realPrices[asset.ticker];
     const currentPrice = realPrice ? realPrice.price : asset.currentPrice;
@@ -42,6 +55,10 @@ export function calculateAssetsWithRealPrices(portfolio, realPrices, exchangeRat
 export function calculateCategoryAllocations(portfolio, realPrices, exchangeRate) {
   const typeTotals = {};
   const filterMap = { acao: 'Ação', fii: 'FII', stock: 'Stock', reit: 'REIT', etf: 'ETF', crypto: 'Crypto' };
+
+  if (!portfolio || !Array.isArray(portfolio)) {
+    return [];
+  }
 
   portfolio.forEach(asset => {
     const realPrice = realPrices[asset.ticker];

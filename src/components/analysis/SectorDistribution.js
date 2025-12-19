@@ -4,7 +4,7 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
 
 const SectorDistribution = ({ portfolio }) => {
@@ -36,7 +36,7 @@ const SectorDistribution = ({ portfolio }) => {
     return bySector
       .map(item => ({
         ...item,
-        percent: total > 0 ? ((item.value / total) * 100).toFixed(1) : 0,
+        percent: total > 0 && typeof item.value === 'number' && !isNaN(item.value) ? ((item.value / total) * 100).toFixed(1) : '0.0',
       }))
       .sort((a, b) => b.value - a.value);
   }, [portfolio]);

@@ -4,7 +4,7 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 
 const RecommendationsCard = ({ portfolio }) => {
   const recommendations = useMemo(() => {
@@ -64,7 +64,7 @@ const RecommendationsCard = ({ portfolio }) => {
       recs.push({
         icon: '🎯',
         title: 'Performance Excelente',
-        description: `Portfolio com performance média de ${(avgPerformance || 0).toFixed(2)}%. Mantenha a estratégia.`,
+        description: `Portfolio com performance média de ${(typeof avgPerformance === 'number' && !isNaN(avgPerformance) ? avgPerformance : 0).toFixed(2)}%. Mantenha a estratégia.`,
         priority: 'low',
       });
     } else if (avgPerformance < -5) {

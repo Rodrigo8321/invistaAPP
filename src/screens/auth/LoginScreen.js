@@ -14,7 +14,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');

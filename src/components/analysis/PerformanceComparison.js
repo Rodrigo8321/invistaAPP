@@ -4,7 +4,7 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 
 const PerformanceComparison = ({ portfolio }) => {
   const ranking = useMemo(() => {
@@ -121,7 +121,7 @@ const PerformanceComparison = ({ portfolio }) => {
         <Text style={[styles.averageValue, {
           color: avgPerformance >= 0 ? colors.success : colors.danger
         }]}>
-          {avgPerformance >= 0 ? '+' : ''}{(avgPerformance || 0).toFixed(2)}%
+          {avgPerformance >= 0 ? '+' : ''}{(typeof avgPerformance === 'number' && !isNaN(avgPerformance) ? avgPerformance : 0).toFixed(2)}%
         </Text>
       </View>
     </View>

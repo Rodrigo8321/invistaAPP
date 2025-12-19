@@ -1,20 +1,47 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import AnalysisScreen from '../AnalysisScreen';
+import { PortfolioContext } from '../../../contexts/PortfolioContext';
 
 jest.mock('../../../contexts/PortfolioContext', () => {
   const React = require('react');
+
+  const mockContext = {
+    loading: false,
+    portfolio: [
+      {
+        ticker: 'PETR4',
+        name: 'Petrobras',
+        quantity: 10,
+        totalInvested: 300,
+        currentPrice: 35,
+        assetType: 'STOCK',
+      },
+    ],
+    loadPortfolio: jest.fn(),
+  };
+
   return {
-    PortfolioContext: React.createContext({
-      portfolio: [],
-      loading: false,
-      loadPortfolio: jest.fn(),
-    }),
+    PortfolioContext: React.createContext(mockContext),
+    usePortfolio: () => mockContext,
   };
 });
 jest.mock('../../../services/exchangeRateService');
 jest.mock('../../../components/analysis/DiversificationChart', () => {
   return () => null;
+});
+
+// Mock do módulo de cores
+jest.mock('../../../styles/colors', () => {
+  return {
+    colors: {
+      primary: '#000',
+      text: '#000',
+      textSecondary: '#000',
+      success: '#000',
+      danger: '#000',
+    },
+  };
 });
 
 // Mock AsyncStorage
@@ -34,17 +61,41 @@ jest.mock('react-native-safe-area-context', () => ({
 
 describe('AnalysisScreen', () => {
   it('renders header initially', () => {
-    const { getByText } = render(<AnalysisScreen />);
+    const { getByText } = render(
+      <PortfolioContext.Provider value={{
+        loading: false,
+        portfolio: [],
+        loadPortfolio: jest.fn()
+      }}>
+        <AnalysisScreen />
+      </PortfolioContext.Provider>
+    );
     expect(getByText('📊 Análise do Portfolio')).toBeTruthy();
   });
 
   it('renders loading state correctly', () => {
-    const { getByText } = render(<AnalysisScreen />);
+    const { getByText } = render(
+      <PortfolioContext.Provider value={{
+        loading: true,
+        portfolio: [],
+        loadPortfolio: jest.fn()
+      }}>
+        <AnalysisScreen />
+      </PortfolioContext.Provider>
+    );
     expect(getByText('📈 Resumo Geral do Portfolio')).toBeTruthy();
   });
 
   it('renders all analysis sections', () => {
-    const { getByText } = render(<AnalysisScreen />);
+    const { getByText } = render(
+      <PortfolioContext.Provider value={{
+        loading: false,
+        portfolio: [],
+        loadPortfolio: jest.fn()
+      }}>
+        <AnalysisScreen />
+      </PortfolioContext.Provider>
+    );
 
     expect(getByText('📈 Resumo Geral do Portfolio')).toBeTruthy();
     expect(getByText('🏆 Ranking de Performance')).toBeTruthy();

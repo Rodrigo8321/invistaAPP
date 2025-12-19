@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAssetPrice } from '../../services/useAssetPrice';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import PriceChart from '../../components/common/PriceChart';
 import CreateAlertModal from '../../components/alerts/CreateAlertModal';

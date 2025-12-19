@@ -1,4 +1,4 @@
-  import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,9 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { transactionService } from '../../services/transactionService';
-import DateTimePicker from '@react-native-community/datetimepicker';
+
 
 const DATE_INPUT_FORMAT = /^\d{2}\/\d{2}\/\d{4}$/; // DD/MM/YYYY
 
@@ -259,31 +259,14 @@ const TransactionModal = ({ visible, onClose, portfolio, onTransactionAdded, ini
 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Data da Transação</Text>
-                  <View style={styles.dateInputContainer}>
                   <TextInput
-                      style={styles.dateInput}
-                      placeholder="DD/MM/AAAA"
-                      placeholderTextColor={colors.textSecondary}
-                      value={dateInput}
-                      onChangeText={handleDateInputChange}
-                      keyboardType="numeric"
-                      maxLength={10}
-                    />
-                    <TouchableOpacity onPress={() => { setDatePickerMode('date'); setShowDatePicker(true); }}>
-                      <Text style={styles.dateIcon}>📅</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {showDatePicker && (
-                    <DateTimePicker
-                      testID="dateTimePicker"
-                      value={date}
-                      mode={datePickerMode}
-                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                      onChange={onChangeDate}
-                      maximumDate={new Date()}
-                      is24Hour={true}
-                    />
-                  )}
+                    style={styles.input}
+                    placeholder="DD/MM/AAAA"
+                    placeholderTextColor={colors.textSecondary}
+                    value={dateInput}
+                    editable={false}
+                  />
+                  <Text style={styles.note}>Data atual será usada automaticamente</Text>
                 </View>
 
                 <View style={styles.form}>
@@ -360,7 +343,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   container: {
-    backgroundColor: colors.background,
+    backgroundColor: colors?.background || '#F5F7FA',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -373,7 +356,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: {
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -381,12 +364,12 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.border,
+    backgroundColor: colors?.border || '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeIcon: {
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -394,7 +377,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   pickerTitle: {
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
@@ -405,18 +388,18 @@ const styles = StyleSheet.create({
   assetItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors?.surface || '#FFFFFF',
     padding: 16,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors?.border || '#E5E5E5',
   },
   assetIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.border,
+    backgroundColor: colors?.border || '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -428,27 +411,27 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   assetItemTicker: {
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 2,
   },
   assetItemName: {
-    color: colors.textSecondary,
+    color: colors?.textSecondary || '#666666',
     fontSize: 12,
   },
   assetItemPrice: {
-    color: colors.primary,
+    color: colors?.primary || '#007AFF',
     fontSize: 14,
     fontWeight: 'bold',
   },
   assetInfo: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors?.surface || '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors?.border || '#E5E5E5',
   },
   assetHeader: {
     flexDirection: 'row',
@@ -458,7 +441,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.border,
+    backgroundColor: colors?.border || '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -470,17 +453,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   ticker: {
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 2,
   },
   name: {
-    color: colors.textSecondary,
+    color: colors?.textSecondary || '#666666',
     fontSize: 14,
   },
   changeText: {
-    color: colors.primary,
+    color: colors?.primary || '#007AFF',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -493,22 +476,22 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: colors.surface,
+    backgroundColor: colors?.surface || '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors?.border || '#E5E5E5',
     alignItems: 'center',
   },
   typeButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors?.primary || '#007AFF',
+    borderColor: colors?.primary || '#007AFF',
   },
   typeButtonText: {
-    color: colors.textSecondary,
+    color: colors?.textSecondary || '#666666',
     fontSize: 14,
     fontWeight: '600',
   },
   typeButtonTextActive: {
-    color: colors.text,
+    color: colors?.text || '#000000',
   },
   form: {
     marginBottom: 20,
@@ -517,33 +500,33 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   inputLabel: {
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors?.surface || '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors?.border || '#E5E5E5',
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: colors.text,
+    color: colors?.text || '#000000',
   },
   totalPreview: {
-    backgroundColor: colors.primary + '10',
+    backgroundColor: (colors?.primary || '#007AFF') + '10',
     borderRadius: 8,
     padding: 12,
     marginTop: 8,
   },
   totalLabel: {
-    color: colors.primary,
+    color: colors?.primary || '#007AFF',
     fontSize: 12,
     marginBottom: 4,
   },
   totalValue: {
-    color: colors.primary,
+    color: colors?.primary || '#007AFF',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -559,40 +542,45 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelButton: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors?.surface || '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors?.border || '#E5E5E5',
   },
   cancelButtonText: {
-    color: colors.textSecondary,
+    color: colors?.textSecondary || '#666666',
     fontSize: 16,
     fontWeight: '600',
   },
   submitButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors?.primary || '#007AFF',
   },
   submitButtonText: {
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 16,
     fontWeight: 'bold',
   },
   dateInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors?.surface || '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors?.border || '#E5E5E5',
     borderRadius: 8,
     paddingHorizontal: 12,
   },
   dateInput: {
     flex: 1,
     fontSize: 16,
-    color: colors.text,
+    color: colors?.text || '#000000',
     paddingVertical: 12,
   },
   dateIcon: {
     fontSize: 22,
+  },
+  note: {
+    color: colors?.textSecondary || '#666666',
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

@@ -10,8 +10,8 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { colors } from '../../styles/colors';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import colors from '../../styles/colors';
+
 
 const assetTypes = ['Ação', 'FII', 'Stock', 'REIT', 'ETF', 'Crypto'];
 const countries = [
@@ -190,19 +190,14 @@ const AddAssetModal = ({ visible, onClose, onAddAsset }) => {
             {/* Purchase Date */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Data da Compra </Text>
-              <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
-                <Text style={{ color: colors.text }}>{date.toLocaleDateString('pt-BR')}</Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  testID="dateTimePicker"
-                  value={date}
-                  mode="date"
-                  display="default"
-                  onChange={onChangeDate}
-                  maximumDate={new Date()}
-                />
-              )}
+              <TextInput
+                style={styles.input}
+                placeholder="DD/MM/AAAA"
+                placeholderTextColor={colors.textSecondary}
+                value={date.toLocaleDateString('pt-BR')}
+                editable={false}
+              />
+              <Text style={styles.note}>Data atual será usada automaticamente</Text>
             </View>
 
             {/* Buttons */}
@@ -332,6 +327,11 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  note: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 4,
   },
 });
 

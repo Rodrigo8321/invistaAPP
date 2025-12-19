@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { exchangeRateService } from '../../services/exchangeRateService';
 
 const { width } = Dimensions.get('window');
@@ -48,7 +48,7 @@ const DiversificationChart = ({ portfolio }) => {
     return byType
       .map(item => ({
         ...item,
-        percent: total > 0 ? ((item.value / total) * 100).toFixed(1) : 0,
+        percent: total > 0 && typeof item.value === 'number' && !isNaN(item.value) ? ((item.value / total) * 100).toFixed(1) : '0.0',
       }))
       .sort((a, b) => b.value - a.value);
   }, [portfolio, exchangeRate]);

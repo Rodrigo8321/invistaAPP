@@ -16,7 +16,7 @@ import { LineChart } from 'react-native-chart-kit';
 import BrapiService from '../../services/brapiService';
 import NewsService from '../../services/NewsService';
 import AlertService from '../../services/alertService';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 
 const { width } = Dimensions.get('window');
 

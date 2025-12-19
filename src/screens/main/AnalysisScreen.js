@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { PortfolioContext } from '../../contexts/PortfolioContext';
 
 // Importando componentes de análise

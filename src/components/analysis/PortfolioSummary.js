@@ -4,7 +4,7 @@
 
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
 
 const PortfolioSummary = ({ portfolio }) => {
@@ -102,7 +102,7 @@ const PortfolioSummary = ({ portfolio }) => {
           <Text style={[styles.percent, {
             color: isPositive ? colors.success : colors.danger
           }]}>
-            {isPositive ? '▲' : '▼'} {Math.abs(stats.profitPercent).toFixed(2)}%
+            {isPositive ? '▲' : '▼'} {Math.abs(stats.profitPercent || 0).toFixed(2)}%
           </Text>
         </View>
 
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   value: {
-    color: colors.text,
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 4,

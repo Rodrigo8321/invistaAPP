@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { formatCurrency } from '../../utils/formatters';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { transactionService } from '../../services/transactionService';

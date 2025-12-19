@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 
 /**
  * Componente que exibe dados fundamentalistas de um ativo

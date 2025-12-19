@@ -10,7 +10,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency } from '../../utils/formatters';
 import { watchlistService } from '../../services/watchlistService';
@@ -120,7 +120,7 @@ const WatchlistScreen = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={colors?.primary || '#007AFF'} />
           <Text style={styles.loadingText}>Carregando watchlist...</Text>
         </View>
       </SafeAreaView>
@@ -143,8 +143,8 @@ const WatchlistScreen = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
+            tintColor={colors?.primary || '#007AFF'}
+            colors={[colors?.primary || '#007AFF']}
           />
         }
       >
@@ -166,14 +166,14 @@ const WatchlistScreen = ({ navigation }) => {
               style={styles.summaryContainer}
               contentContainerStyle={styles.summaryContent}
             >
-              <View style={[styles.summaryCard, { backgroundColor: colors.primary }]}>
+              <View style={[styles.summaryCard, { backgroundColor: colors?.primary || '#007AFF' }]}>
                 <Text style={styles.summaryLabel}>Total Investido</Text>
                 <Text style={styles.summaryValue}>
                   {formatCurrency(totals.invested)}
                 </Text>
               </View>
 
-              <View style={[styles.summaryCard, { backgroundColor: colors.secondary }]}>
+              <View style={[styles.summaryCard, { backgroundColor: colors?.secondary || '#34C759' }]}>
                 <Text style={styles.summaryLabel}>Valor Atual</Text>
                 <Text style={styles.summaryValue}>
                   {formatCurrency(totals.current)}
@@ -181,14 +181,14 @@ const WatchlistScreen = ({ navigation }) => {
               </View>
 
               <View style={[styles.summaryCard, {
-                backgroundColor: totals.profit >= 0 ? colors.success : colors.danger
+                backgroundColor: totals.profit >= 0 ? (colors?.success || '#34C759') : (colors?.danger || '#FF3B30')
               }]}>
                 <Text style={styles.summaryLabel}>Lucro/Prejuízo</Text>
                 <Text style={styles.summaryValue}>
                   {formatCurrency(Math.abs(totals.profit))}
                 </Text>
                 <Text style={styles.summaryPercent}>
-                  {totals.profitPercent >= 0 ? '+' : ''}{totals.profitPercent.toFixed(2)}%
+                  {totals.profitPercent >= 0 ? '+' : ''}{(totals.profitPercent || 0).toFixed(2)}%
                 </Text>
               </View>
             </ScrollView>
@@ -199,7 +199,7 @@ const WatchlistScreen = ({ navigation }) => {
                 <TextInput
                   style={styles.searchInput}
                   placeholder="Buscar favorito..."
-                  placeholderTextColor={colors.textSecondary}
+                  placeholderTextColor={colors?.textSecondary || '#666666'}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
@@ -289,8 +289,11 @@ const WatchlistScreen = ({ navigation }) => {
                     <View key={asset.id} style={styles.assetContainer}>
                       <AssetCard
                         asset={asset}
+                        currentPrice={asset.currentPrice}
                         onPress={() =>
-                          navigation.navigate('AssetDetail', { asset })
+                          navigation.navigate('AssetDetails', {
+                            ticker: asset.ticker,
+                          })
                         }
                       />
                       <TouchableOpacity
@@ -324,24 +327,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: colors.textSecondary,
+    color: colors?.textSecondary || '#666666',
     fontSize: 14,
     marginTop: 12,
   },
   header: {
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors?.border || '#E5E5E5',
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors?.text || '#000000',
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors?.textSecondary || '#666666',
   },
   summaryContainer: {
     paddingLeft: 20,
@@ -383,13 +386,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyTitle: {
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   emptyText: {
-    color: colors.textSecondary,
+    color: colors?.textSecondary || '#666666',
     fontSize: 14,
     textAlign: 'center',
   },
@@ -401,12 +404,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   searchInput: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors?.surface || '#FFFFFF',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors?.border || '#E5E5E5',
     borderRadius: 12,
     padding: 12,
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 14,
   },
   filtersRow: {
@@ -417,25 +420,25 @@ const styles = StyleSheet.create({
     paddingRight: 20,
   },
   filterChip: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors?.surface || '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors?.border || '#E5E5E5',
   },
   filterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors?.primary || '#007AFF',
+    borderColor: colors?.primary || '#007AFF',
   },
   filterText: {
-    color: colors.textSecondary,
+    color: colors?.textSecondary || '#666666',
     fontSize: 13,
     fontWeight: '600',
   },
   filterTextActive: {
-    color: colors.text,
+    color: colors?.text || '#000000',
   },
   listContainer: {
     paddingHorizontal: 20,
@@ -451,7 +454,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: colors.danger,
+    backgroundColor: colors?.danger || '#FF3B30',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 10,
@@ -470,13 +473,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   noResultsTitle: {
-    color: colors.text,
+    color: colors?.text || '#000000',
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   noResultsText: {
-    color: colors.textSecondary,
+    color: colors?.textSecondary || '#666666',
     fontSize: 13,
   },
 });

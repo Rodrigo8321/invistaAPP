@@ -11,7 +11,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatCurrency, formatPercent } from '../../utils/formatters';
 import { usePortfolio } from '../../contexts/PortfolioContext'; // 1. Usar o contexto do portfólio
@@ -19,6 +19,7 @@ import { fetchQuote, fetchExchangeRate } from '../../services/marketService'; //
 import { calculateAssetsWithRealPrices, calculateCategoryAllocations, calculatePerformersBySegment } from '../../domain/portfolio/performanceCalculations';
 import { getPortfolioStats } from '../../domain/portfolio/portfolioStats';
 import TransactionModal from '../../components/transactions/TransactionModal';
+import PortfolioSummary from '../../components/dashboard/PortfolioSummary';
 
 const { width } = Dimensions.get('window');
 
@@ -205,6 +206,8 @@ const DashboardScreen = ({ navigation }) => {
             </TouchableOpacity>
           */}
           </View>
+
+          <PortfolioSummary />
 
           <View style={styles.heroValueContainer}>
             <Text style={styles.heroValue}>{formatCurrency(stats.totalCurrent)}</Text>

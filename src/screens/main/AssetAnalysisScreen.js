@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { colors } from '../../styles/colors';
+import colors from '../../styles/colors';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { marketService } from '../../services/marketService';
 
